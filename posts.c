@@ -49,6 +49,7 @@ void post_list_destroy(struct post_list *list) {
 void post_list_prepend(struct post_list *list, struct post *post) {
     // Used only for frontpage/catalog list
     if(list->first == NULL) {
+        printf("NUL?\n");
         list->first = post;
         list->last = post;
     } else {
@@ -131,6 +132,14 @@ struct post *post_list_find(struct post_list *list, int id) {
     return NULL;
 }
 
+void post_list_debug(struct post_list *list) {
+    struct post *curr = list->first;
+    while(curr != NULL) {
+        post_debug(curr);
+        curr = curr->next;
+    }
+}
+
 // Post
 struct post *post_create(const char *author, const char *subject, const char *comment, struct post *parent) {
     struct post *post = malloc(sizeof(struct post));
@@ -139,9 +148,11 @@ struct post *post_create(const char *author, const char *subject, const char *co
     post->subject = encode_html(subject);
     post->comment = encode_html(comment);
     post->created_time = time(NULL);
+    post->saved = 0;
     post->replies = post_list_create();
     post->prev = NULL;
     post->next = NULL;
+    
     if(parent == NULL) {
         post->parent = NULL;
         post_list_prepend(curr_post_list, post);
@@ -149,8 +160,8 @@ struct post *post_create(const char *author, const char *subject, const char *co
         post->parent = parent;
         post_list_append(parent->replies, post);
     }
-    post_list_append(full_post_list, post);
-    printf("Post(%s, %s, %s)\n",post->author,post->subject,post->comment);
+    
+    post_debug(post);
     return post;
 }
 
@@ -179,4 +190,8 @@ char *post_render(struct post *post) {
     memset(html, 0, length);
     RENDER_POST(html, length, POST_ELEMENT)
     return html;
+}
+
+void post_debug(struct post *post) {
+    printf("Post(%s, %s, %s, %p, %p)\n",post->author,post->subject,post->comment,post->prev,post->next);
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <math.h>
 #define startswith(x,y) (strncmp(x,y,strlen(y)) == 0)
 #define streq(x,y) (strcmp(x,y) == 0)
 #define sendstr(sockfd,str) send(sockfd,str,strlen(str), 0)
