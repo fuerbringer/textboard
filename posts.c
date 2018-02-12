@@ -6,6 +6,7 @@
 #include "posts.h"
 #include "helpers.h"
 #include "static.h"
+#include "config.h"
 
 #define RENDER_POST(x, length, element) \
     char time_utc[TIME_LENGTH]; \
@@ -18,13 +19,14 @@
 \
     snprintf(x, length, element, \
             post->subject, post->author, time_utc, time, \
-            post->id, post->id, post->comment);
+            post->id, post->id, post->replies->length, post->comment);
 
 #define GUESS_POST_RENDER_LENGTH(element) /* generous guesstimate */ \
     (strlen(element) + \
      strlen(post->author) + \
      strlen(post->subject) + \
      strlen(post->comment) + \
+     digits(post->replies->length) + 2 + \
      TIME_LENGTH * 2)
 
 // Post list
@@ -49,7 +51,6 @@ void post_list_destroy(struct post_list *list) {
 void post_list_prepend(struct post_list *list, struct post *post) {
     // Used only for frontpage/catalog list
     if(list->first == NULL) {
-        printf("NUL?\n");
         list->first = post;
         list->last = post;
     } else {
@@ -84,8 +85,6 @@ void post_list_append(struct post_list *list, struct post *post) {
 }
 
 char *post_list_render(struct post_list *list, const int is_reply) {
-    printf("LEN: %li\n", list->length);
-    
     char *element;
     if(is_reply) {
         element = POST_REPLY_ELEMENT;
@@ -105,7 +104,8 @@ char *post_list_render(struct post_list *list, const int is_reply) {
     }
     
     char *html = malloc(list_length + 1);
-    memset(html, 0, list_length+1);
+    if(html == NULL) return NULL;
+    memset(html, 0, list_length);
     post = list->first;
     while(post != NULL) {
         const size_t length = GUESS_POST_RENDER_LENGTH(element);
@@ -141,13 +141,20 @@ void post_list_debug(struct post_list *list) {
 }
 
 // Post
-struct post *post_create(const char *author, const char *subject, const char *comment, struct post *parent) {
+struct post *post_create(unsigned int id, const char *author, const char *subject, const char *comment, time_t created_time, struct post *parent) {
     struct post *post = malloc(sizeof(struct post));
-    post->id = global_id++;
+    if(id == (unsigned int)-1) {
+        post->id = global_id++;
+    } else {
+        post->id = id;
+    }
     post->author = encode_html(author);
     post->subject = encode_html(subject);
     post->comment = encode_html(comment);
-    post->created_time = time(NULL);
+    if(created_time)
+        post->created_time = created_time;
+    else
+        post->created_time = time(NULL);
     post->saved = 0;
     post->replies = post_list_create();
     post->prev = NULL;

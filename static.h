@@ -1,7 +1,6 @@
 #pragma once
 
-#define SITE_NAME "/c/chan"
-#define TIME_LENGTH 40
+#include "config.h"
 
 // Static files
 // (state of the art shitty html4 that is)
@@ -43,6 +42,9 @@
 "}" \
 ".reply {" \
     "margin-left:10px;" \
+"}" \
+".reply .replies{" \
+    "display: none;" \
 "}"
 
 #define HEADER_FILE \
@@ -68,7 +70,8 @@
             "<span class='subject'>%s</span> " \
             "<span class='name'>%s</span> " \
             "<time datetime='%s'>%s</time> " \
-            "<a href='/post/%i' class='id'>#%i</a>" \
+            "<a href='/post/%i' class='id'>#%i</a> " \
+            "<span class='replies'>(%li)</span> " \
         "</p>" \
         "<p class='comment'>%s</p>" \
     "</div>"
@@ -80,6 +83,7 @@
             "<span class='name'>%s</span> " \
             "<time datetime='%s'>%s</time> " \
             "<a href='/post/%i' class='id'>#%i</a>" \
+            "<span class='replies'>(%li)</span> " \
         "</p>" \
         "<p class='comment'>%s</p>" \
     "</div>"
