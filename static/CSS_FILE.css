@@ -1,0 +1,36 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #ffffff;
+}
+/* Header */
+#header {
+    text-align:center;
+}
+#header table {
+    border: 0 none;
+    margin: 0 auto;
+    width: 380px;
+}
+/* Form table */
+tr td:first-child {
+    vertical-align: top;
+    text-align:right;
+}
+/* Post */
+.subject {
+    color: #DB0A5B;
+    font-weight: bold;
+}
+.name {
+    color: #16A085;
+    font-weight: bold;
+}
+.id {
+    color: #666666;
+}
+.reply {
+    margin-left:10px;
+}
+.reply .replies{
+    display: none;
+}

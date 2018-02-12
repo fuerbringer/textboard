@@ -145,12 +145,15 @@ struct post *post_create(unsigned int id, const char *author, const char *subjec
     struct post *post = malloc(sizeof(struct post));
     if(id == (unsigned int)-1) {
         post->id = global_id++;
+        post->author = encode_html(author);
+        post->subject = encode_html(subject);
+        post->comment = encode_html(comment);
     } else {
         post->id = id;
+        post->author = clone_str(author);
+        post->subject = clone_str(subject);
+        post->comment = clone_str(comment);
     }
-    post->author = encode_html(author);
-    post->subject = encode_html(subject);
-    post->comment = encode_html(comment);
     if(created_time)
         post->created_time = created_time;
     else
