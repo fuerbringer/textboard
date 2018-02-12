@@ -47,6 +47,7 @@ void post_list_destroy(struct post_list *list) {
 }
 
 void post_list_prepend(struct post_list *list, struct post *post) {
+    // Used only for frontpage/catalog list
     if(list->first == NULL) {
         list->first = post;
         list->last = post;
@@ -68,6 +69,7 @@ void post_list_prepend(struct post_list *list, struct post *post) {
 }
 
 void post_list_append(struct post_list *list, struct post *post) {
+    // Used for comment replies
     if(list->first == NULL) {
         list->first = post;
         list->last = post;
@@ -105,7 +107,7 @@ char *post_list_render(struct post_list *list, const int is_reply) {
     memset(html, 0, list_length+1);
     post = list->first;
     while(post != NULL) {
-        size_t length = GUESS_POST_RENDER_LENGTH(element);
+        const size_t length = GUESS_POST_RENDER_LENGTH(element);
         
         char *tmp = malloc(length);
         memset(tmp, 0, length);
@@ -147,6 +149,7 @@ struct post *post_create(const char *author, const char *subject, const char *co
         post->parent = parent;
         post_list_append(parent->replies, post);
     }
+    post_list_append(full_post_list, post);
     printf("Post(%s, %s, %s)\n",post->author,post->subject,post->comment);
     return post;
 }
@@ -161,11 +164,17 @@ void post_destroy(struct post *post) {
     } else {
         post->parent->replies->length--;
     }
+    
+    if(post->next != NULL)
+        post->next->prev = post->prev;
+    if(post->prev != NULL)
+        post->prev->next = post->next;
+    
     free(post);
 }
 
 char *post_render(struct post *post) {
-    size_t length = GUESS_POST_RENDER_LENGTH(POST_ELEMENT);
+    const size_t length = GUESS_POST_RENDER_LENGTH(POST_ELEMENT);
     char *html = malloc(length);
     memset(html, 0, length);
     RENDER_POST(html, length, POST_ELEMENT)
