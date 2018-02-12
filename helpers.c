@@ -15,13 +15,13 @@ void decode_uri(char *dest, const char *src) {
     for(size_t i = 0, j = 0; src[i];) {
         if(src[i] == '%') {
             i++;
-            size_t prev = i;
-            char
+            const size_t prev = i;
+            const char
                 c1 = i < strlen(src) ? src[i++] : 0,
                 c2 = i < strlen(src) ? src[i++] : 0;
             if(isxdigit(c1) && isxdigit(c2)) {
                 
-                char hex[3] = { c1, c2, 0 };
+                const char hex[3] = { c1, c2, 0 };
                 dest[j++] = strtol(hex, NULL, 16);
                 
             } else {

@@ -15,7 +15,7 @@
 
 #define MAXPENDING 5
 #define BUFFSIZE 1024
-#define PORT 8080
+#define DEFAULT_PORT 8080
 
 // need this header for *gasps* ie6 compatibility
 #define CNT_TEXT_HEADER "Content-Type: text/plain\n"
@@ -31,7 +31,8 @@ void handle(const int sockfd) {
     int received = -1;
     if ((received = recv(sockfd, buffer, BUFFSIZE, 0)) < 0) {
         printf("Failed to receive\n");
-        goto end;
+        close(sockfd);
+        return;
     }
     printf("---\n%s\n:::\n", buffer);
     
@@ -55,8 +56,8 @@ void handle(const int sockfd) {
     // parse headers
     // initial line
     char *_saveptr;
-    char *method = strtok_r(buffer, " ", &_saveptr);
-    char *path = strtok_r(NULL, " ", &_saveptr);
+    const char *method = strtok_r(buffer, " ", &_saveptr);
+    const char *path = strtok_r(NULL, " ", &_saveptr);
     strtok_r(NULL, "\n", &_saveptr); // skip rest of initial line
     // header lines
     int content_length = -1;
@@ -148,8 +149,8 @@ CNT_TEXT_HEADER \
     // GET /post/*
     else if(streq(method, "GET") && startswith(path, "/post/")) {
         
-        char *post_id_str = strrchr(path, '/')+1;
-        unsigned int post_id = (unsigned int)strtol(post_id_str, NULL, 10);
+        const char *post_id_str = strrchr(path, '/')+1;
+        const unsigned int post_id = (unsigned int)strtol(post_id_str, NULL, 10);
         struct post *post;
         
         if((post = post_list_find(curr_post_list, post_id)) != NULL) {
@@ -260,8 +261,6 @@ CNT_TEXT_HEADER
                 free(value);
                 free(_pair);
             }
-            
-            free(body);
 
             if(name == NULL || !strlen(name)) {
                 if(!strlen(name)) free(name);
@@ -291,7 +290,7 @@ CNT_TEXT_HEADER
             if(reply_to == NULL)
                 post_create(name, subject, comment, NULL);
             else {
-                unsigned int reply_to_id = (unsigned int)strtol(reply_to, NULL, 10);
+                const unsigned int reply_to_id = (unsigned int)strtol(reply_to, NULL, 10);
                 struct post *parent;
                 if((parent = post_list_find(curr_post_list, reply_to_id)) != NULL) {
                     post_create(name, subject, comment, parent);
@@ -326,6 +325,8 @@ CNT_TEXT_HEADER
     printf("---\n");
 
 end:
+    if(body != NULL)
+        free(body);
     close(sockfd);
 }
 
@@ -333,64 +334,81 @@ end:
 void init_database() {
     global_id = 0;
     curr_post_list = post_list_create();
+    full_post_list = post_list_create();
 }
 
 void cleanup_database() {
     post_list_destroy(curr_post_list);
+    free(full_post_list); // elements are already destroyed
 }
 
 // Signal handlers
 void cleanup(const int sig) {
     printf("Cleaning up...\n");
     if(sockfd > 0 && shutdown(sockfd, 0) < 0)
-        printf("WARNING! Failed to close server socket; %i\n", errno);
+        printf("WARNING! Failed to close server socket: %s\n", strerror(errno));
     cleanup_database();
     exit(0);
 }
 
 // Main
-int main() {
+int main(const int argc, const char *argv[]) {
     // Initialize signals
     signal(SIGINT, cleanup);
     signal(SIGKILL, cleanup);
+    
+    // Parse arguments
+    int port = DEFAULT_PORT;
+    if(argc > 1) {
+        if(streq(argv[1], "-h")) {
+            printf("%s [-h|port number]\n", argv[0]);
+            exit(0);
+        } else {
+            char *endptr = "";
+            port = strtol(argv[1], &endptr, 10);
+            if(strlen(endptr)) {
+                printf("Invalid port number!\n");
+                exit(1);
+            }
+        }
+    }
     
     // Initialize database
     init_database();
     
     // Initialize TCP sockets
     sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    
     if(sockfd < 0) {
-        printf("Cannot open socket\n");
-        exit(1);
+        printf("Cannot open socket: %s\n", strerror(errno));
+        exit(errno);
     }
     if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0) {
-        printf("Cannot set socket opts\n");
+        printf("Cannot set socket opts: %s\n", strerror(errno));
         close(sockfd);
-        exit(1);
+        exit(errno);
     }
     struct sockaddr_in server, client;
     memset(&server, 0, sizeof(server));
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = htonl(INADDR_ANY);
-    server.sin_port = htons(PORT);
+    server.sin_port = htons(port);
     if(bind(sockfd, (struct sockaddr *)&server, sizeof(server)) < 0) {
-        printf("Failed to bind! %i\n", errno);
+        printf("Failed to bind: %s\n", strerror(errno));
         close(sockfd);
-        exit(1);
+        exit(errno);
     }
     if(listen(sockfd, MAXPENDING) < 0) {
-        printf("Failed to listen!\n");
+        printf("Failed to listen: %s\n", strerror(errno));
         close(sockfd);
-        exit(1);
+        exit(errno);
     }
-    printf("Listening on port %i\n", PORT);
+    printf("Listening on port %i\n", port);
     
     // Event loop
     while(1) {
         unsigned int clientlen = sizeof(client);
         if((clientfd = accept(sockfd, (struct sockaddr *)&client, &clientlen)) < 0) {
-            printf("Failed to accept client connection\n");
+            printf("Failed to accept client connection: %s\n", strerror(errno));
             break;
         }
         printf("Client connected: %s\n", inet_ntoa(client.sin_addr));
@@ -399,7 +417,7 @@ int main() {
     
     // Fin
     if(sockfd > 0 && shutdown(sockfd, 0) < 0)
-        printf("WARNING! Failed to close server socket; %i\n", errno);
+        printf("WARNING! Failed to close server socket: %s\n", strerror(errno));
     cleanup_database();
     return 0;
 }
