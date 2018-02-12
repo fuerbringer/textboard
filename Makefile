@@ -1,9 +1,16 @@
 CFLAGS=-lm -lpthread -Wall -g -O0
-SOURCES=server.c posts.c helpers.c handler.c database.c
-.PHONY: server $(SOURCES)
+SOURCES=src/server.c src/posts.c src/helpers.c src/handler.c src/database.c
+.PHONY: server src/static_files.h $(SOURCES)
 
-server: server.c $(SOURCES)
-	cc $(CFLAGS) -o $@ $^
+server: src/static_files.h $(SOURCES)
+	cc $(CFLAGS) -o $@ $(SOURCES)
+
+src/static_files.h:
+	echo "#pragma once" > $@
+	cd static; \
+	for i in *; do \
+		printf "#define `echo $$i|cut -d. -f1` \"%s\"\n" "`cat $$i|xargs`" >> ../$@; \
+	done
 
 clean:
 	rm -f server
