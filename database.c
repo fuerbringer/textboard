@@ -5,9 +5,7 @@
 #include <string.h>
 
 #include "posts.h"
-
-#define DATABASE_FILE "database.csv"
-#define DATABASE_SLEEP 1
+#include "config.h"
 
 void *db_thread_main(void *curr_post_list_ptr) {
     printf("Database thread loaded!\n");
@@ -23,16 +21,18 @@ void *db_thread_main(void *curr_post_list_ptr) {
     while(1) {
         // Save the database
         if(!header_saved) {
-            const char *header = "id,author,subject,comment,created_time,parent\n";
-            fwrite(header, 1, strlen(header), db_file);
+            fwrite(DATABASE_HEADER, 1, strlen(DATABASE_HEADER), db_file);
             header_saved = 1;
         }
         
-        struct post *post = curr_post_list->first;
+        #define STR_VALUE_OR_EMPTY(x) (strlen(x) ? x : DATABASE_DELIM_EMPTY)
+        
+        struct post *post = curr_post_list->last;
         while(post != NULL) {
             if(!post->saved) {
-                fprintf(db_file, "%i,%s,%s,%s,%li,\n",
-                    post->id, post->author, post->subject,
+                fprintf(db_file, "%i,%s,%s,%s,%li," DATABASE_DELIM_EMPTY "\n",
+                    post->id, post->author,
+                    STR_VALUE_OR_EMPTY(post->subject),
                     post->comment, post->created_time);
                 post->saved = 1;
             }
@@ -41,7 +41,8 @@ void *db_thread_main(void *curr_post_list_ptr) {
             while(reply != NULL) {
                 if(!reply->saved) {
                     fprintf(db_file, "%i,%s,%s,%s,%li,%i\n",
-                        reply->id, reply->author, reply->subject,
+                        reply->id, reply->author,
+                        STR_VALUE_OR_EMPTY(reply->subject),
                         reply->comment, reply->created_time,
                         post->id);
                     reply->saved = 1;
@@ -49,11 +50,11 @@ void *db_thread_main(void *curr_post_list_ptr) {
                 reply = reply->next;
             }
             
-            post = post->next;
+            post = post->prev;
         }
         
         fflush(db_file);
-        printf("Database saved.\n");
+        //printf("Database saved.\n");
         
         // Sleep
         sleep(DATABASE_SLEEP);

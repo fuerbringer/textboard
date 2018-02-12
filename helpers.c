@@ -45,7 +45,8 @@ char *encode_html(const char *src) {
     while(src[i]) {
         // don't escape these characters
         if(isalnum(src[i]) || // [A-Za-z0-9]
-            (32 <= src[i] && src[i] <= 47) || // [space] to /
+            (32 <= src[i] && src[i] <= 47 && src[i] != 44) || // [space] to / without ,
+            // (makes converting from/to csv A LOT fucking easier
             (src[i] == 61 || src[i] == 63 || src[i] == 64) || // =, ?, @
             (123 <= src[i] && src[i] <= 126)) { // { to ~
             dest[j++] = src[i++];

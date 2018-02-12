@@ -3,8 +3,6 @@
 #include <time.h>
 #include <stdlib.h>
 
-#define MAX_POSTS 90
-
 // Post list
 struct post_list {
     size_t length;
@@ -36,7 +34,7 @@ struct post {
 };
 unsigned int global_id;
 
-struct post *post_create(const char *author, const char *subject, const char *comment, struct post *parent);
+struct post *post_create(unsigned int id, const char *author, const char *subject, const char *comment, time_t created_time, struct post *parent);
 void post_destroy(struct post *post);
 char *post_render(struct post *post);
 void post_debug(struct post *post);

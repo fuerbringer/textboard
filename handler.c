@@ -8,8 +8,6 @@
 #include "static.h"
 #include "posts.h"
 
-#define BUFFSIZE 1024
-
 // need this header for *gasps* ie6 compatibility
 #define CNT_TEXT_HEADER "Content-Type: text/plain\n"
 
@@ -276,12 +274,12 @@ CNT_TEXT_HEADER
             printf("!!!\nName: %s\nSubject: %s\nComment: %s\n!!!\n", name, subject, comment);
             // Put it in the database
             if(reply_to == NULL)
-                post_create(name, subject, comment, NULL);
+                post_create((unsigned int)-1, name, subject, comment, 0, NULL);
             else {
                 const unsigned int reply_to_id = (unsigned int)strtol(reply_to, NULL, 10);
                 struct post *parent;
                 if((parent = post_list_find(curr_post_list, reply_to_id)) != NULL) {
-                    post_create(name, subject, comment, parent);
+                    post_create((unsigned int)-1, name, subject, comment, 0, parent);
                 } else {
                     sendstr(sockfd,
 "HTTP/1.1 404 Not Found\n"
