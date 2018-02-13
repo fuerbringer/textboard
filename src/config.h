@@ -6,7 +6,7 @@
 
 // Name of the board software. Build scripts append commit hash.
 #ifndef FOOTER_VERSION
-#define FOOTER_VERSION "texboard"
+#define FOOTER_VERSION "textboard"
 #endif
 
 // Database
