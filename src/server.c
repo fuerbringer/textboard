@@ -25,7 +25,12 @@ extern void handle(const int sockfd);
 // Database actions
 static void init_database() {
     global_id = 0;
+    
     curr_post_list = post_list_create();
+    if(curr_post_list == NULL) {
+        printf("Failed to create curr_post_list\n");
+        exit(1);
+    }
     
     // Load database from file
     FILE *f = fopen(DATABASE_FILE, "r");
@@ -42,9 +47,11 @@ static void init_database() {
                 continue;
             }
             
+            #ifndef PRODUCTION
             printf("%s\n",line);
+            #endif
+            
             char *_saveptr;
-            //  #define DATABASE_HEADER "id,author,subject,comment,created_time,parent\n"
             char *id_str = strtok_r(line, ",", &_saveptr);
             unsigned int id = atoi(id_str);
             char *name = strtok_r(NULL, ",", &_saveptr);
@@ -55,17 +62,26 @@ static void init_database() {
             time_t created_time = atoi(created_time_str);
             char *parent_str = strtok_r(NULL, "\n", &_saveptr);
             
+            #ifndef PRODUCTION
             printf("%i,%s,%s,%s,%li,%s\n", id, name, subject, comment, created_time, parent_str);
+            #endif
+            
             if(streq(parent_str, DATABASE_DELIM_EMPTY)) {
                 global_id = max(global_id, id);
-                post_create(id, name, subject, comment, created_time, NULL);
+                if(post_create(id, name, subject, comment, created_time, NULL) == NULL) {
+                    printf("Failed to create post %i\n", id);
+                    goto end;
+                }
                 loaded++;
             } else {
                 unsigned int parent_id = atoi(parent_str);
                 struct post *parent;
                 if((parent = post_list_find(curr_post_list, parent_id)) != NULL) {
                     global_id = max(global_id, id);
-                    post_create(id, name, subject, comment, created_time, parent);
+                    if(post_create(id, name, subject, comment, created_time, parent) == NULL) {
+                        printf("Failed to create post %i\n", id);
+                     goto end;
+                    }
                     loaded++;
                 } else {
                     printf("Ignoring #%i...\n", id);
@@ -80,12 +96,18 @@ static void init_database() {
     if(pthread_create(&db_thread, NULL, db_thread_main, (void*)curr_post_list) < 0) {
         printf("Failed to load database thread!\n");
         post_list_destroy(curr_post_list);
-        exit(1);
+        goto end;
     }
+    
+    return;
+
+end:
+    fclose(f);
+    exit(1);
 }
 
 static void cleanup_database() {
-    pthread_cancel(db_thread); // really need to add itc or sth
+    pthread_cancel(db_thread);
     post_list_destroy(curr_post_list);
 }
 

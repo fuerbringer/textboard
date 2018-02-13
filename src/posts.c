@@ -32,6 +32,7 @@
 // Post list
 struct post_list *post_list_create() {
     struct post_list *list = malloc(sizeof(struct post_list));
+    if(list == NULL) return NULL;
     list->first = NULL;
     list->last = NULL;
     list->length = 0;
@@ -133,16 +134,19 @@ struct post *post_list_find(struct post_list *list, int id) {
 }
 
 void post_list_debug(struct post_list *list) {
+    #ifndef PRODUCTION
     struct post *curr = list->first;
     while(curr != NULL) {
         post_debug(curr);
         curr = curr->next;
     }
+    #endif
 }
 
 // Post
 struct post *post_create(unsigned int id, const char *author, const char *subject, const char *comment, time_t created_time, struct post *parent) {
     struct post *post = malloc(sizeof(struct post));
+    if(post == NULL) return NULL;
     if(id == (unsigned int)-1) {
         post->id = global_id++;
         post->author = encode_html(author);
@@ -153,6 +157,15 @@ struct post *post_create(unsigned int id, const char *author, const char *subjec
         post->author = clone_str(author);
         post->subject = clone_str(subject);
         post->comment = clone_str(comment);
+    }
+    if( post->author  == NULL ||
+        post->subject == NULL ||
+        post->comment == NULL ) {
+        if(post->author != NULL) free(post->author);
+        if(post->subject != NULL) free(post->subject);
+        if(post->comment != NULL) free(post->comment);
+        free(post);
+        return NULL;
     }
     if(created_time)
         post->created_time = created_time;
@@ -203,5 +216,7 @@ char *post_render(struct post *post) {
 }
 
 void post_debug(struct post *post) {
+    #ifndef PRODUCTION
     printf("Post(%s, %s, %s, %p, %p)\n",post->author,post->subject,post->comment,post->prev,post->next);
+    #endif
 }
