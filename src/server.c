@@ -35,6 +35,7 @@ static void init_database() {
         char *line = NULL;
         size_t len = 0;
         int header = 0;
+        unsigned int loaded = 0;
         while (getline(&line, &len, f) != -1) {
             if(!header) {
                 header = 1;
@@ -58,18 +59,20 @@ static void init_database() {
             if(streq(parent_str, DATABASE_DELIM_EMPTY)) {
                 global_id = max(global_id, id);
                 post_create(id, name, subject, comment, created_time, NULL);
+                loaded++;
             } else {
                 unsigned int parent_id = atoi(parent_str);
                 struct post *parent;
                 if((parent = post_list_find(curr_post_list, parent_id)) != NULL) {
                     global_id = max(global_id, id);
                     post_create(id, name, subject, comment, created_time, parent);
+                    loaded++;
                 } else {
                     printf("Ignoring #%i...\n", id);
                 }
             }
         }
-        if(global_id > 0)
+        if(loaded > 0)
             global_id++;
     }
     
