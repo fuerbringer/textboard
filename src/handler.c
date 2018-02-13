@@ -21,7 +21,9 @@ void handle(const int sockfd) {
         close(sockfd);
         return;
     }
-    //printf("---\n%s\n:::\n", buffer);
+    #ifndef PRODUCTION
+    printf("---\n%s\n:::\n", buffer);
+    #endif
     
     // copy body
     char *body = NULL;
@@ -115,7 +117,9 @@ CNT_TEXT_HEADER \
             length,
             date,
             html == NULL ? "" : html);
-        //printf("RESPONSE\n%s", response);
+        #ifndef PRODUCTION
+        printf("RESPONSE\n%s", response);
+        #endif
         
         sendstr(sockfd, response);
         
@@ -178,7 +182,9 @@ CNT_TEXT_HEADER \
                 post_id_str,
                 html,
                 (replies_html == NULL ? "" : replies_html));
-            //printf("RESPONSE\n%s", response);
+            #ifndef PRODUCTION
+            printf("RESPONSE\n%s", response);
+            #endif
             
             sendstr(sockfd, response);
             
@@ -220,7 +226,6 @@ CNT_TEXT_HEADER
                 
                 char *_pair = clone_str(pair);
                 const size_t pair_length = strlen(_pair);
-                printf("PAIR: %s\n", _pair);
                 
                 char *_saveptr1;
                 char *key = strtok_r(_pair, "=", &_saveptr1);
@@ -234,7 +239,6 @@ CNT_TEXT_HEADER
                 memset(value, 0, value_length);
                 decode_uri(value, _value);
                 free(_value);
-                printf("%s, %s\n", key, value);
                 
                 if(streq(key, "name"))
                     name = clone_str(value);
@@ -262,7 +266,6 @@ CNT_TEXT_HEADER
                 cleanup_fields();
                 goto end;
             } else if(!strlen(comment)) {
-                printf("%s\n",comment);
                 sendstr(sockfd,
 "HTTP/1.1 200 OK\n"
 CNT_TEXT_HEADER
@@ -272,33 +275,49 @@ CNT_TEXT_HEADER
                 goto end;
             }
             
+            #ifndef PRODUCTION
             printf("!!!\nName: %s\nSubject: %s\nComment: %s\n!!!\n", name, subject, comment);
+            #endif
+            
             // Put it in the database
+            struct post *post = NULL;
             if(reply_to == NULL)
-                post_create((unsigned int)-1, name, subject, comment, 0, NULL);
+                post = post_create((unsigned int)-1, name, subject, comment, 0, NULL);
             else {
                 const unsigned int reply_to_id = (unsigned int)strtol(reply_to, NULL, 10);
                 struct post *parent;
                 if((parent = post_list_find(curr_post_list, reply_to_id)) != NULL) {
-                    post_create((unsigned int)-1, name, subject, comment, 0, parent);
+                    post = post_create((unsigned int)-1, name, subject, comment, 0, parent);
                 } else {
                     sendstr(sockfd,
 "HTTP/1.1 404 Not Found\n"
 CNT_TEXT_HEADER
 "\n"
 "there is no post by this id! ;n;");
+                    cleanup_fields();
+                    goto end;
                 }
             }
             
             cleanup_fields();
             
-            sendstr(sockfd,
+            
+            if(post == NULL) {
+                printf("ERROR! post is NULL!\n");
+                sendstr(sockfd, 
+"HTTP/1.1 200 OK\n"
+CNT_TEXT_HEADER
+"\n"
+"post is NULL! send mail to sysadmin ;n;");
+            } else {
+                sendstr(sockfd,
 "HTTP/1.1 200 OK\n"
 "Content-Type: text/html\n"
 "\n"
 "<meta http-equiv=refresh content='1; url=/' />"
 "OK! owo<br>"
 "<p><a href=/>&#8810; Back</a></p>");
+            }
             
         } else {
             sendstr(sockfd,
