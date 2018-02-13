@@ -2,6 +2,8 @@
 
 A simple textboard server written entirely in C.
 
+An instance is gratuitously hosted by @Hoi15A: [chan.neat.moe](https://chan.neat.moe/)
+
 ## But... but why?
 
 That's classified!
