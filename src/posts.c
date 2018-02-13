@@ -135,22 +135,48 @@ struct post *post_list_find(struct post_list *list, int id) {
 }
 
 void post_list_bump(struct post_list *list, struct post *right) {
-    if(list->first == right) {
+    struct post *left = list->first;
+    
+    if(left == right) {
         return;
     }
     
-    struct post *left = list->first;
+    if(left->next == right) { // right next to each other
+        left->next = right->next;
+        right->prev = left->prev;
+        
+        if (left->next != NULL)
+            left->next->prev = left;
+
+        if (right->prev != NULL)
+            right->prev->next = right;
+
+        right->next = left;
+        left->prev = right;
+    } else {
+        struct post *x = right->prev;
+        struct post *y = right->next;
+        
+        right->prev = left->prev;
+        right->next = left->next;
+        
+        left->prev = x;
+        left->next = y;
+
+        if (right->next != NULL)
+            right->next->prev = right;
+        if (right->prev != NULL)
+            right->prev->next = right;
+
+        if (left->next != NULL)
+            left->next->prev = left;
+        if (left->prev != NULL)
+            left->prev->next = left;
+    }
     
-    if(left->prev)
-        left->prev->next = right;
-    if(right->next)
-        right->next->prev = left;
-    
-    left->next = right->next;
-    right->prev = left->prev;
-    right->next = left;
-    left->prev = right;
     list->first = right;
+    if(left->next == NULL)
+        list->last = left;
 }
 
 void post_list_debug(struct post_list *list) {

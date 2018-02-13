@@ -4,4 +4,4 @@ import sys
 import re
 
 with open(sys.argv[1]) as f:
-    print("\"%s\"" % re.sub('[\s\t\n]+', ' ', str(f.read())).strip())
+    print("\"%s\"" % re.sub('[\s\t\n]+', ' ', str(f.read())).replace('"','\\"').strip())
