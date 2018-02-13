@@ -134,6 +134,25 @@ struct post *post_list_find(struct post_list *list, int id) {
     return NULL;
 }
 
+void post_list_bump(struct post_list *list, struct post *right) {
+    if(list->first == right) {
+        return;
+    }
+    
+    struct post *left = list->first;
+    
+    if(left->prev)
+        left->prev->next = right;
+    if(right->next)
+        right->next->prev = left;
+    
+    left->next = right->next;
+    right->prev = left->prev;
+    right->next = left;
+    left->prev = right;
+    list->first = right;
+}
+
 void post_list_debug(struct post_list *list) {
     #ifndef PRODUCTION
     struct post *curr = list->first;
@@ -183,6 +202,7 @@ struct post *post_create(unsigned int id, const char *author, const char *subjec
     } else {
         post->parent = parent;
         post_list_append(parent->replies, post);
+        post_list_bump(curr_post_list, parent);
     }
     
     curr_post_list->should_save = 1;
