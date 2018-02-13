@@ -18,6 +18,7 @@ void post_list_prepend(struct post_list *list, struct post *post);
 void post_list_append(struct post_list *list, struct post *post);
 char *post_list_render(struct post_list *list, const int is_reply);
 struct post *post_list_find(struct post_list *list, int id);
+void post_list_bump(struct post_list *list, struct post *post);
 void post_list_debug(struct post_list *list);
 
 // Post (NOTE: can only be in one list)
