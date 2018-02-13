@@ -9,8 +9,6 @@
 #define DATABASE_FILE "database.csv"
 // Header of the database file
 #define DATABASE_HEADER "id,author,subject,comment,created_time,parent\n"
-// How often the database will be saved
-#define DATABASE_SLEEP 5*60
 // Ensures empty columns will be parsed correctly
 // If you're not sure what to change it to, don't change it.
 #define DATABASE_DELIM_EMPTY "&"

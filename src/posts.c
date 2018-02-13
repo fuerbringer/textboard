@@ -36,6 +36,7 @@ struct post_list *post_list_create() {
     list->first = NULL;
     list->last = NULL;
     list->length = 0;
+    list->should_save = 0;
     return list;
 }
 
@@ -184,6 +185,7 @@ struct post *post_create(unsigned int id, const char *author, const char *subjec
         post_list_append(parent->replies, post);
     }
     
+    curr_post_list->should_save = 1;
     post_debug(post);
     return post;
 }

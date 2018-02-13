@@ -62,11 +62,11 @@ void *db_thread_main(void *curr_post_list_ptr) {
             header_saved = 1;
         }
         
-        db_thread_save(&db_file, &curr_post_list, !header_saved);
-        printf("Database saved.\n");
-        
-        // Sleep
-        sleep(DATABASE_SLEEP);
+        if(curr_post_list->should_save) {
+            db_thread_save(&db_file, &curr_post_list, !header_saved);
+            curr_post_list->should_save = 0;
+            printf("Database saved.\n");
+        }
     }
     
     fclose(db_file);
