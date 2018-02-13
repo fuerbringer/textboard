@@ -14,8 +14,9 @@
 // Handler
 void handle(const int sockfd) {
     char buffer[BUFFSIZE];
+    memset(buffer, 0, BUFFSIZE);
     int received = -1;
-    if ((received = recv(sockfd, buffer, BUFFSIZE, 0)) < 0) {
+    if ((received = recv(sockfd, buffer, BUFFSIZE-1, 0)) < 0) {
         printf("Failed to receive\n");
         close(sockfd);
         return;
@@ -250,7 +251,7 @@ CNT_TEXT_HEADER
 
             if(name == NULL || !strlen(name)) {
                 if(!strlen(name)) free(name);
-                name = clone_str("anonymous");
+                name = clone_str(DEFAULT_USERNAME);
             }
             if(comment == NULL) {
                 sendstr(sockfd, 

@@ -28,7 +28,7 @@
         prepend \
         "<tr>" \
             "<td valign=top align=right><label for=name>Name:</label></td>" \
-            "<td><input name=name size=30></td>" \
+            "<td><input name=name size=30 placeholder='" DEFAULT_USERNAME "'></td>" \
         "</tr>" \
         "<tr>" \
             "<td valign=top align=right><label for=subject>Subject:</label></td>" \
