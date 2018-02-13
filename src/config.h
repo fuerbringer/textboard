@@ -4,6 +4,11 @@
 // Name of the site (will be used in title/header)
 #define SITE_NAME "/c/chan"
 
+// Name of the board software. Build scripts append commit hash.
+#ifndef FOOTER_VERSION
+#define FOOTER_VERSION "texboard"
+#endif
+
 // Database
 // Where the database will be located relative to the server binary
 #define DATABASE_FILE "database.csv"
