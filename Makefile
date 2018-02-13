@@ -1,5 +1,5 @@
 ifeq ($(PRODUCTION), 1)
-    CFLAGS=-lm -lpthread -Wall -O3 -DPRODUCTION
+    CFLAGS=-lm -lpthread -Wall -O1 -DPRODUCTION
 else
     CFLAGS=-lm -lpthread -Wall -g -O0
 endif
