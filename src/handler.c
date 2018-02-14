@@ -27,28 +27,18 @@ void handle(const int sockfd) {
     printf("---\n%s\n:::\n", buffer);
     #endif
     
-    // copy body
-    char *body = NULL;
-    for(size_t i = 0; i < strlen(buffer); i++) {
-        const char
-            c1 = buffer[i],
-            c2 = i+1<strlen(buffer) ? buffer[i+1] : 0,
-            c3 = i+2<strlen(buffer) ? buffer[i+2] : 0,
-            c4 = i+3<strlen(buffer) ? buffer[i+3] : 0;
-        if(c1 == '\r' && c2 == '\n' && c3 == '\r' && c4 == '\n') {
-            size_t length = strlen(buffer) - i - 4;
-            body = malloc(length + 1);
-            strncpy(body, buffer+i+4, length);
-            body[length] = 0;
-            break;
-        }
-    }
+    char *_buffer = clone_str(buffer);
     
     // parse headers
     // initial line
     char *_saveptr;
     const char *method = strtok_r(buffer, " ", &_saveptr);
     const char *path = strtok_r(NULL, " ", &_saveptr);
+    if(method == NULL || path == NULL) {
+        free(_buffer);
+        close(sockfd);
+        return;
+    }
     strtok_r(NULL, "\n", &_saveptr); // skip rest of initial line
     // header lines
     int content_length = -1;
@@ -61,6 +51,10 @@ void handle(const int sockfd) {
         char *_saveptr1;
         const char *key = strtok_r(_line, ":", &_saveptr1);
         const char *value = _line + strlen(key) + 2; // skip : and space
+        if(key == NULL || value == NULL) {
+            free(_line);
+            break;
+        }
         
         if(streq(key, "Content-Length"))
             content_length = atoi(value);
@@ -68,40 +62,59 @@ void handle(const int sockfd) {
         free(_line);
     }
 
+    // copy body
+    char *body = NULL;
+    for(size_t i = 0; i < strlen(_buffer); i++) {
+        const char
+            c1 = _buffer[i],
+            c2 = i+1<strlen(_buffer) ? _buffer[i+1] : 0,
+            c3 = i+2<strlen(_buffer) ? _buffer[i+2] : 0,
+            c4 = i+3<strlen(_buffer) ? _buffer[i+3] : 0;
+        if(c1 == '\r' && c2 == '\n' && c3 == '\r' && c4 == '\n') {
+            size_t length = strlen(_buffer) - i - 4;
+            body = malloc(length + 1);
+            strncpy(body, _buffer+i+4, length);
+            body[length] = 0;
+            break;
+        }
+    }
+    free(_buffer);
     
-    if(content_length <= strlen(body)) // prevents overflow
-        body[content_length] = 0;
-    else if (content_length > -1) {
-        char cont[BUFFSIZE+1];
-        memset(cont, 0, BUFFSIZE+1);
-        int total_received = strlen(body);
-        while(total_received < content_length) {
-            if((received = recv(sockfd, cont, max(content_length - total_received, BUFFSIZE), 0)) < 0) {
-                break;
-            } else {
-                #ifndef PRODUCTION
-                printf("%s\n",cont);
-                #endif
-                total_received += received;
-                size_t max_size;
-                if(total_received > content_length) {
-                    max_size = content_length - strlen(body);
-                    body = realloc(body, content_length+1);
-                    if(body == NULL) goto end;
-                    strncat(body, cont, max_size);
-                    body[content_length] = 0;
+    if(body != NULL) {
+        if(content_length <= strlen(body)) // prevents overflow
+            body[content_length] = 0;
+        else if (content_length > -1) {
+            char cont[BUFFSIZE+1];
+            memset(cont, 0, BUFFSIZE+1);
+            int total_received = strlen(body);
+            while(total_received < content_length) {
+                if((received = recv(sockfd, cont, max(content_length - total_received, BUFFSIZE), 0)) < 0) {
+                    break;
                 } else {
-                    max_size = total_received - strlen(body);
-                    body = realloc(body, total_received+1);
-                    if(body == NULL) goto end;
-                    strncat(body, cont, max_size);
-                    body[total_received] = 0;
+                    #ifndef PRODUCTION
+                    printf("%s\n",cont);
+                    #endif
+                    total_received += received;
+                    size_t max_size;
+                    if(total_received > content_length) {
+                        max_size = content_length - strlen(body);
+                        body = realloc(body, content_length+1);
+                        if(body == NULL) goto end;
+                        strncat(body, cont, max_size);
+                        body[content_length] = 0;
+                    } else {
+                        max_size = total_received - strlen(body);
+                        body = realloc(body, total_received+1);
+                        if(body == NULL) goto end;
+                        strncat(body, cont, max_size);
+                        body[total_received] = 0;
+                    }
                 }
             }
+            #ifndef PRODUCTION
+            printf("%s\n",body);
+            #endif
         }
-        #ifndef PRODUCTION
-        printf("%s\n",body);
-        #endif
     }
 
     #define DATE_HEADER_LINE \
@@ -220,7 +233,6 @@ CNT_TEXT_HEADER \
             snprintf(footer, strlen(FOOTER_FILE)+strlen(FOOTER_VERSION), FOOTER_FILE, FOOTER_VERSION);
             sendstr(sockfd, footer);
             free(footer);
-            
         } else {
             sendstr(sockfd, 
 "HTTP/1.0 404 Not Found\n"
