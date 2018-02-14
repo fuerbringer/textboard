@@ -60,7 +60,7 @@
         "<tr>" \
             "<td colspan=2>" \
                 "<center>Replying to post..." \
-                "<input type=text readonly value='%s' size=3 name=reply_to style='display:none;'></center>" /* shitty html hack */ \
+                "<input type=text readonly value='%i' size=3 name=reply_to style='display:none;'></center>" /* shitty html hack */ \
             "</td>" \
         "</tr>") \
     "</center>"

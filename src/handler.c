@@ -204,8 +204,11 @@ CNT_TEXT_HEADER \
             char *footer = malloc(strlen(FOOTER_FILE)+strlen(FOOTER_VERSION));
             snprintf(footer, strlen(FOOTER_FILE)+strlen(FOOTER_VERSION), FOOTER_FILE, FOOTER_VERSION);
             
+            char *header = malloc(strlen(REPLY_FILE_HEADER)+digits(post_id)+1);
+            snprintf(header, strlen(REPLY_FILE_HEADER)+digits(post_id)+1, REPLY_FILE_HEADER, post_id);
+            
             const size_t length =
-                strlen(REPLY_FILE_HEADER) +
+                strlen(header) +
                 strlen(html) +
                 (replies_html == NULL ? 0 : strlen(replies_html)) +
                 strlen(footer);
@@ -221,7 +224,7 @@ CNT_TEXT_HEADER \
             sendstr(sockfd, date);
             sendstr(sockfd, "\n\n");
             
-            sendstr(sockfd, REPLY_FILE_HEADER);
+            sendstr(sockfd, header);
             if(html != NULL) {
                 sendstr(sockfd, html);
                 free(html);
