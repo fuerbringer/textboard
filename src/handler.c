@@ -113,7 +113,7 @@ void handle(const int sockfd) {
         type left = malloc(length); \
         if(left == NULL) { \
             sendstr(sockfd, \
-"HTTP/1.1 200 OK\n" \
+"HTTP/1.0 200 OK\n" \
 CNT_TEXT_HEADER \
 "\n" \
 "malloc failed (check stdout)"); \
@@ -135,12 +135,13 @@ CNT_TEXT_HEADER \
             (html == NULL ? 0 : strlen(html)) +
             strlen(FOOTER_FILE) +
             strlen(FOOTER_VERSION);
-        char length_str[16];
-        snprintf(length_str, 16, "%li", length);
-        
-        sendstr(sockfd, RESPONSE_HEADER);
+        char length_str[32];
+        snprintf(length_str, 32, "Content-Length: %li\n", length);
+            
+        sendstr(sockfd,
+            "HTTP/1.1 200 OK\n"
+            "Content-Type: text/html\n");
         sendstr(sockfd, length_str);
-        sendstr(sockfd, "\n");
         sendstr(sockfd, date);
         sendstr(sockfd, "\n\n");
         
@@ -158,11 +159,11 @@ CNT_TEXT_HEADER \
     // GET /post
     else if(streq(method, "GET") && streq(path, "/post")) {
         sendstr(sockfd,
-"HTTP/1.1 200 OK\n"
+"HTTP/1.0 200 OK\n"
 "Content-Type: text/html\n"
 "\n"
 "<h1>Usage:</h1>\n"
-"<p>POST /post HTTP/1.1</p>"
+"<p>POST /post HTTP/1.0</p>"
 "<p>with content: name=[name]&subject=[subject]&comment=[comment]</p>");
     }
     // GET /post/*
@@ -185,12 +186,13 @@ CNT_TEXT_HEADER \
                 (replies_html == NULL ? 0 : strlen(replies_html)) +
                 strlen(FOOTER_FILE) +
                 strlen(FOOTER_VERSION);
-            char length_str[16];
-            snprintf(length_str, 16, "%li", length);
+            char length_str[32];
+            snprintf(length_str, 32, "Content-Length: %li\n", length);
             
-            sendstr(sockfd, RESPONSE_HEADER);
+            sendstr(sockfd,
+                "HTTP/1.1 200 OK\n"
+                "Content-Type: text/html\n");
             sendstr(sockfd, length_str);
-            sendstr(sockfd, "\n");
             sendstr(sockfd, date);
             sendstr(sockfd, "\n\n");
             
@@ -211,7 +213,7 @@ CNT_TEXT_HEADER \
             
         } else {
             sendstr(sockfd, 
-"HTTP/1.1 404 Not Found\n"
+"HTTP/1.0 404 Not Found\n"
 CNT_TEXT_HEADER
 "\n"
 "there is no post by this id! ;n;");
@@ -272,7 +274,7 @@ CNT_TEXT_HEADER
             }
             if(comment == NULL) {
                 sendstr(sockfd, 
-"HTTP/1.1 200 OK\n"
+"HTTP/1.0 200 OK\n"
 CNT_TEXT_HEADER
 "\n"
 "there should be a comment field here! >_<");
@@ -280,7 +282,7 @@ CNT_TEXT_HEADER
                 goto end;
             } else if(!strlen(comment)) {
                 sendstr(sockfd,
-"HTTP/1.1 200 OK\n"
+"HTTP/1.0 200 OK\n"
 CNT_TEXT_HEADER
 "\n"
 "comment field shouldn't be empty! >~<");
@@ -303,7 +305,7 @@ CNT_TEXT_HEADER
                     post = post_create((unsigned int)-1, name, subject, comment, 0, parent);
                 } else {
                     sendstr(sockfd,
-"HTTP/1.1 404 Not Found\n"
+"HTTP/1.0 404 Not Found\n"
 CNT_TEXT_HEADER
 "\n"
 "there is no post by this id! ;n;");
@@ -318,13 +320,13 @@ CNT_TEXT_HEADER
             if(post == NULL) {
                 printf("ERROR! post is NULL!\n");
                 sendstr(sockfd, 
-"HTTP/1.1 200 OK\n"
+"HTTP/1.0 200 OK\n"
 CNT_TEXT_HEADER
 "\n"
 "post is NULL! send mail to sysadmin ;n;");
             } else {
                 sendstr(sockfd,
-"HTTP/1.1 200 OK\n"
+"HTTP/1.0 200 OK\n"
 "Content-Type: text/html\n"
 "\n"
 "<meta http-equiv=refresh content='1; url=/' />"
@@ -334,7 +336,7 @@ CNT_TEXT_HEADER
             
         } else {
             sendstr(sockfd,
-"HTTP/1.1 200 OK\n"
+"HTTP/1.0 200 OK\n"
 CNT_TEXT_HEADER
 "\n"
 "can't post without arguments! ;n;");
@@ -343,7 +345,7 @@ CNT_TEXT_HEADER
     // GET /style.css
     else if(streq(method, "GET") && streq(path, "/style.css")) {
         sendstr(sockfd,
-"HTTP/1.1 200 OK\n"
+"HTTP/1.0 200 OK\n"
 "Content-type: text/css\n"
 "\n"
 CSS_FILE);
