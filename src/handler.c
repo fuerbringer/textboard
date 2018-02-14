@@ -201,16 +201,18 @@ CNT_TEXT_HEADER \
             char *html = post_render(post);
             char *replies_html = post_list_render(post->replies, 1);
             
-            DATE_HEADER_LINE
+            char *footer = malloc(strlen(FOOTER_FILE)+strlen(FOOTER_VERSION));
+            snprintf(footer, strlen(FOOTER_FILE)+strlen(FOOTER_VERSION), FOOTER_FILE, FOOTER_VERSION);
             
             const size_t length =
-                strlen(INDEX_FILE_HEADER) +
+                strlen(REPLY_FILE_HEADER) +
                 strlen(html) +
                 (replies_html == NULL ? 0 : strlen(replies_html)) +
-                strlen(FOOTER_FILE) +
-                strlen(FOOTER_VERSION);
+                strlen(footer);
             char length_str[32];
             snprintf(length_str, 32, "Content-Length: %li\n", length);
+            
+            DATE_HEADER_LINE
             
             sendstr(sockfd,
                 "HTTP/1.1 200 OK\n"
@@ -229,8 +231,6 @@ CNT_TEXT_HEADER \
                 free(replies_html);
             }
             
-            char *footer = malloc(strlen(FOOTER_FILE)+strlen(FOOTER_VERSION));
-            snprintf(footer, strlen(FOOTER_FILE)+strlen(FOOTER_VERSION), FOOTER_FILE, FOOTER_VERSION);
             sendstr(sockfd, footer);
             free(footer);
         } else {
