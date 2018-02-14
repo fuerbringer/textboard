@@ -8,6 +8,8 @@
 #include "static.h"
 #include "posts.h"
 
+#define sendstr(sockfd,str) send(sockfd,str,strlen(str), 0)
+
 // need this header for *gasps* ie6 compatibility
 #define CNT_TEXT_HEADER "Content-Type: text/plain\n"
 
@@ -129,41 +131,29 @@ CNT_TEXT_HEADER \
         char *html = post_list_render(curr_post_list, 0);
         
         const size_t length =
-            strlen(RESPONSE_HEADER) + // HTML/1.1 (...)
-            digits( // Content-Length: ??
-                strlen(INDEX_FILE_HEADER) +
-                (html == NULL ? 0 : strlen(html)) +
-                strlen(FOOTER_FILE) +
-                strlen(FOOTER_VERSION)
-            ) +
-            1 + // '\n'
-            strlen(date) + // Date: [date]
-            2 + // '\n\n'
-            strlen(INDEX_FILE_HEADER) + // index file
-            (html == NULL ? 0 : strlen(html)) + // posts
+            strlen(INDEX_FILE_HEADER) +
+            (html == NULL ? 0 : strlen(html)) +
             strlen(FOOTER_FILE) +
-            strlen(FOOTER_VERSION) +
-            2; // '\0'
+            strlen(FOOTER_VERSION);
+        char length_str[16];
+        snprintf(length_str, 16, "%li", length);
         
-        malloc_or_fail(char *, response, length, {
-            if(html != NULL)
-                free(html);
-        });
-        memset(response, 0, length);
-        snprintf(response, length,
-            RESPONSE_HEADER "%li\n%s\n\n" INDEX_FILE_HEADER "%s" FOOTER_FILE,
-            length,
-            date,
-            html == NULL ? "" : html, FOOTER_VERSION);
-        #ifndef PRODUCTION
-        printf("RESPONSE\n%s", response);
-        #endif
+        sendstr(sockfd, RESPONSE_HEADER);
+        sendstr(sockfd, length_str);
+        sendstr(sockfd, "\n");
+        sendstr(sockfd, date);
+        sendstr(sockfd, "\n\n");
         
-        sendstr(sockfd, response);
-        
-        if(html != NULL)
+        sendstr(sockfd, INDEX_FILE_HEADER);
+        if(html != NULL) {
+            sendstr(sockfd, html);
             free(html);
-        free(response);
+        }
+        
+        char *footer = malloc(strlen(FOOTER_FILE)+strlen(FOOTER_VERSION));
+        snprintf(footer, strlen(FOOTER_FILE)+strlen(FOOTER_VERSION), FOOTER_FILE, FOOTER_VERSION);
+        sendstr(sockfd, footer);
+        free(footer);
     }
     // GET /post
     else if(streq(method, "GET") && streq(path, "/post")) {
@@ -188,51 +178,36 @@ CNT_TEXT_HEADER \
             char *replies_html = post_list_render(post->replies, 1);
             
             DATE_HEADER_LINE
-        
+            
             const size_t length =
-                strlen(RESPONSE_HEADER) + // HTML/1.1 (...)
-                digits( // Content-Length: ??
-                    strlen(INDEX_FILE_HEADER) +
-                    strlen(html) +
-                    (replies_html == NULL ? 0 : strlen(replies_html)) +
-                    strlen(FOOTER_FILE) +
-                    strlen(FOOTER_VERSION)
-                ) +
-                1 + // \n
-                strlen(date) + // Date: [date]
-                2 + // '\n\n'
-                strlen(REPLY_FILE_HEADER) + // index file
-                strlen(post_id_str) + // for form action
-                strlen(html) + // post
+                strlen(INDEX_FILE_HEADER) +
+                strlen(html) +
                 (replies_html == NULL ? 0 : strlen(replies_html)) +
                 strlen(FOOTER_FILE) +
-                strlen(FOOTER_VERSION) +
-                2; // '\0'
-        
-            malloc_or_fail(char *, response, length, {
+                strlen(FOOTER_VERSION);
+            char length_str[16];
+            snprintf(length_str, 16, "%li", length);
+            
+            sendstr(sockfd, RESPONSE_HEADER);
+            sendstr(sockfd, length_str);
+            sendstr(sockfd, "\n");
+            sendstr(sockfd, date);
+            sendstr(sockfd, "\n\n");
+            
+            sendstr(sockfd, REPLY_FILE_HEADER);
+            if(html != NULL) {
+                sendstr(sockfd, html);
                 free(html);
-                if(replies_html != NULL)
-                   free(replies_html);
-            });
-            memset(response, 0, length);
-            snprintf(response, length,
-                RESPONSE_HEADER "%li\n%s\n\n" REPLY_FILE_HEADER "%s%s" FOOTER_FILE,
-                length,
-                date,
-                post_id_str,
-                html,
-                (replies_html == NULL ? "" : replies_html),
-                FOOTER_VERSION);
-            #ifndef PRODUCTION
-            printf("RESPONSE\n%s", response);
-            #endif
-            
-            sendstr(sockfd, response);
-            
-            free(html);
-            if(replies_html != NULL)
+            }
+            if(replies_html != NULL) {
+                sendstr(sockfd, replies_html);
                 free(replies_html);
-            free(response);
+            }
+            
+            char *footer = malloc(strlen(FOOTER_FILE)+strlen(FOOTER_VERSION));
+            snprintf(footer, strlen(FOOTER_FILE)+strlen(FOOTER_VERSION), FOOTER_FILE, FOOTER_VERSION);
+            sendstr(sockfd, footer);
+            free(footer);
             
         } else {
             sendstr(sockfd, 
