@@ -185,7 +185,7 @@ int main(const int argc, const char *argv[]) {
         int clientfd;
         if((clientfd = accept(sockfd, (struct sockaddr *)&client, &clientlen)) < 0) {
             printf("Failed to accept client connection: %s\n", strerror(errno));
-            break;
+            continue;
         }
         printf("Client connected: %s\n", inet_ntoa(client.sin_addr));
         handle(clientfd);
