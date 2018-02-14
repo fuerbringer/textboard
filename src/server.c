@@ -181,20 +181,21 @@ int main(const int argc, const char *argv[]) {
     
     // Event loop
     fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(sockfd, &readfds);
     
     struct timeval select_timeout;
     
     while(1) {
+        FD_ZERO(&readfds);
+        FD_SET(sockfd, &readfds);
+        
         tv.tv_sec = 0;
         tv.tv_usec = 1000;
-        int activity = select(1, &readfds, NULL, NULL, &select_timeout);
+        int activity = select(FD_SETSIZE, &readfds, NULL, NULL, &select_timeout);
         
         if (activity < 0 && errno != EINTR)
             continue;
     
-        if(activity > 0 && FD_ISSET(sockfd, &readfds)) {
+        if(FD_ISSET(sockfd, &readfds)) {
             unsigned int clientlen = sizeof(client);
             int clientfd;
             if((clientfd = accept(sockfd, (struct sockaddr *)&client, &clientlen)) < 0) {
