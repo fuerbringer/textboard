@@ -13,10 +13,10 @@
 
 // Handler
 void handle(const int sockfd) {
-    char buffer[BUFFSIZE];
-    memset(buffer, 0, BUFFSIZE);
+    char buffer[BUFFSIZE+1];
+    memset(buffer, 0, BUFFSIZE+1);
     int received = -1;
-    if ((received = recv(sockfd, buffer, BUFFSIZE-1, 0)) < 0) {
+    if ((received = recv(sockfd, buffer, BUFFSIZE, 0)) < 0) {
         printf("Failed to receive\n");
         close(sockfd);
         return;
@@ -64,6 +64,42 @@ void handle(const int sockfd) {
             content_length = atoi(value);
         
         free(_line);
+    }
+
+    
+    if(content_length <= strlen(body)) // prevents overflow
+        body[content_length] = 0;
+    else if (content_length > -1) {
+        char cont[BUFFSIZE+1];
+        memset(cont, 0, BUFFSIZE+1);
+        int total_received = strlen(body);
+        while(total_received < content_length) {
+            if((received = recv(sockfd, cont, max(content_length - total_received, BUFFSIZE), 0)) < 0) {
+                break;
+            } else {
+                #ifndef PRODUCTION
+                printf("%s\n",cont);
+                #endif
+                total_received += received;
+                size_t max_size;
+                if(total_received > content_length) {
+                    max_size = content_length - strlen(body);
+                    body = realloc(body, content_length+1);
+                    if(body == NULL) goto end;
+                    strncat(body, cont, max_size);
+                    body[content_length] = 0;
+                } else {
+                    max_size = total_received - strlen(body);
+                    body = realloc(body, total_received+1);
+                    if(body == NULL) goto end;
+                    strncat(body, cont, max_size);
+                    body[total_received] = 0;
+                }
+            }
+        }
+        #ifndef PRODUCTION
+        printf("%s\n",body);
+        #endif
     }
 
     #define DATE_HEADER_LINE \
@@ -210,9 +246,6 @@ CNT_TEXT_HEADER
     // POST /post
     else if(streq(method, "POST") && streq(path, "/post")) {
         if(content_length > -1) {
-            if(content_length <= strlen(body)) // prevents overflow
-                body[content_length] = 0;
-            
             char *name = NULL;
             char *subject = NULL;
             char *comment = NULL;
