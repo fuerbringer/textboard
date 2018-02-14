@@ -68,7 +68,7 @@ void *db_thread_main(void *curr_post_list_ptr) {
             printf("Database saved.\n");
         }
         
-        usleep(500);
+        usleep(DATABASE_TIMEOUT/1000);
     }
     
     fclose(db_file);
