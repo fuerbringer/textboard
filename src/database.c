@@ -67,6 +67,8 @@ void *db_thread_main(void *curr_post_list_ptr) {
             curr_post_list->should_save = 0;
             printf("Database saved.\n");
         }
+        
+        usleep(500);
     }
     
     fclose(db_file);
