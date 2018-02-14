@@ -30,3 +30,5 @@
 #define BUFFSIZE 1024
 // Length of string containing the HTTP header Date.
 #define TIME_LENGTH 40
+// Timeout in seconds for recv
+#define TIMEOUT 2*60

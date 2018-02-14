@@ -151,7 +151,13 @@ int main(const int argc, const char *argv[]) {
         printf("Cannot open socket: %s\n", strerror(errno));
         exit(errno);
     }
-    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0) {
+    struct timeval tv;
+    memset(&tv, 0, sizeof(struct timeval));
+    tv.tv_sec = TIMEOUT;
+    tv.tv_usec = 0;
+    if( setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv)) < 0 ||
+        setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int))    < 0
+    ) {
         printf("Cannot set socket opts: %s\n", strerror(errno));
         close(sockfd);
         exit(errno);
