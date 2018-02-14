@@ -168,8 +168,18 @@ CNT_TEXT_HEADER \
     }
     // GET /post/*
     else if(streq(method, "GET") && startswith(path, "/post/")) {
-        
         const char *post_id_str = strrchr(path, '/')+1;
+        if(post_id_str == 0 || post_id_str == NULL) {
+            sendstr(sockfd,
+"HTTP/1.0 200 OK\n"
+"Content-Type: text/html\n"
+"\n"
+"<h1>Usage:</h1>\n"
+"<p>POST /post HTTP/1.0</p>"
+"<p>with content: name=[name]&subject=[subject]&comment=[comment]</p>");
+            goto end;
+        }
+        
         const unsigned int post_id = (unsigned int)strtol(post_id_str, NULL, 10);
         struct post *post;
         
