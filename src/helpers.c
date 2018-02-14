@@ -40,9 +40,14 @@ void decode_uri(char *dest, const char *src) {
 char *encode_html(const char *src) {
     size_t length = strlen(src)+1; // +null terminator
     char *dest = malloc(length);
+    if(dest == NULL) return NULL;
     memset(dest, 0, length);
     size_t i = 0, j = 0;
     while(src[i]) {
+        if(src[i] > 127 || src[i] < 0) {
+            free(dest);
+            return NULL;
+        }
         // don't escape these characters
         if(isalnum(src[i]) || // [A-Za-z0-9]
             (32 <= src[i] && src[i] <= 47 && src[i] != 44) || // [space] to / without ,

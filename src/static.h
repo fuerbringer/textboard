@@ -47,6 +47,7 @@
     HEADER_FILE \
     "<center id='header'>" \
     "<h1><a href=/>" SITE_NAME "</a></h1>" \
+    HEADER_MESSAGES \
     FORM_TEMPLATE() \
     "</center>"
 
@@ -54,6 +55,7 @@
     HEADER_FILE \
     "<center id='header'>" \
     "<h1><a href=/>" SITE_NAME "</a></h1>" \
+    HEADER_MESSAGES \
     FORM_TEMPLATE(\
         "<tr>" \
             "<td colspan=2>" \
