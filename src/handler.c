@@ -365,6 +365,14 @@ CNT_TEXT_HEADER
 "can't post without arguments! ;n;");
         }
     }
+    // GET /style.css
+    else if(streq(method, "GET") && streq(path, "/style.css")) {
+        sendstr(sockfd,
+"HTTP/1.1 200 OK\n"
+"Content-type: text/css\n"
+"\n"
+CSS_FILE);
+    }
     
     printf("---\n");
 
