@@ -97,7 +97,8 @@ CNT_TEXT_HEADER \
             digits( // Content-Length: ??
                 strlen(INDEX_FILE_HEADER) +
                 (html == NULL ? 0 : strlen(html)) +
-                strlen(FOOTER_FILE)
+                strlen(FOOTER_FILE) +
+                strlen(FOOTER_VERSION)
             ) +
             1 + // '\n'
             strlen(date) + // Date: [date]
@@ -105,6 +106,7 @@ CNT_TEXT_HEADER \
             strlen(INDEX_FILE_HEADER) + // index file
             (html == NULL ? 0 : strlen(html)) + // posts
             strlen(FOOTER_FILE) +
+            strlen(FOOTER_VERSION) +
             2; // '\0'
         
         malloc_or_fail(char *, response, length, {
@@ -116,7 +118,7 @@ CNT_TEXT_HEADER \
             RESPONSE_HEADER "%li\n%s\n\n" INDEX_FILE_HEADER "%s" FOOTER_FILE,
             length,
             date,
-            html == NULL ? "" : html);
+            html == NULL ? "" : html, FOOTER_VERSION);
         #ifndef PRODUCTION
         printf("RESPONSE\n%s", response);
         #endif
@@ -157,7 +159,8 @@ CNT_TEXT_HEADER \
                     strlen(INDEX_FILE_HEADER) +
                     strlen(html) +
                     (replies_html == NULL ? 0 : strlen(replies_html)) +
-                    strlen(FOOTER_FILE)
+                    strlen(FOOTER_FILE) +
+                    strlen(FOOTER_VERSION)
                 ) +
                 1 + // \n
                 strlen(date) + // Date: [date]
@@ -167,6 +170,7 @@ CNT_TEXT_HEADER \
                 strlen(html) + // post
                 (replies_html == NULL ? 0 : strlen(replies_html)) +
                 strlen(FOOTER_FILE) +
+                strlen(FOOTER_VERSION) +
                 2; // '\0'
         
             malloc_or_fail(char *, response, length, {
@@ -181,7 +185,8 @@ CNT_TEXT_HEADER \
                 date,
                 post_id_str,
                 html,
-                (replies_html == NULL ? "" : replies_html));
+                (replies_html == NULL ? "" : replies_html),
+                FOOTER_VERSION);
             #ifndef PRODUCTION
             printf("RESPONSE\n%s", response);
             #endif
