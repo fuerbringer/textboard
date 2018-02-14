@@ -15,10 +15,8 @@
 "<html>" \
 "<head>" \
     "<title>" SITE_NAME "</title>" \
-    "<meta charset=utf-8>" \
-    "<style>" \
-    CSS_FILE \
-    "</style>" \
+    "<meta charset='utf-8'>" \
+    "<link rel='stylesheet' href='/style.css'>" \
 "</head>" \
 "<body>"
 
