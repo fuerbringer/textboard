@@ -358,7 +358,7 @@ CNT_TEXT_HEADER
             
         } else {
             sendstr(sockfd,
-"HTTP/1.0 200 OK\n"
+"HTTP/1.0 404 Not Found\n"
 CNT_TEXT_HEADER
 "\n"
 "can't post without arguments! ;n;");
@@ -371,6 +371,18 @@ CNT_TEXT_HEADER
 "Content-type: text/css\n"
 "\n"
 CSS_FILE);
+    }
+    // 404 Not found otherwise
+    else {
+        char length_str[32];
+        snprintf(length_str, 32, "Content-Length: %li\n", length);
+        
+        sendstr(sockfd,
+            "HTTP/1.1 200 OK\n"
+            "Content-Type: text/html\n");
+        sendstr(sockfd, length_str);
+        sendstr(sockfd, "\n\n");
+        sendstr(sockfd, NOT_FOUND);
     }
     
     printf("---\n");
