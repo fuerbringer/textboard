@@ -375,7 +375,7 @@ CSS_FILE);
     // 404 Not found otherwise
     else {
         char length_str[32];
-        snprintf(length_str, 32, "Content-Length: %li\n", length);
+        snprintf(length_str, 32, "Content-Length: %li\n", strlen(NOT_FOUND));
         
         sendstr(sockfd,
             "HTTP/1.1 200 OK\n"
