@@ -63,11 +63,12 @@ char *encode_html(const char *src) {
             // concat first -> bits
             bits = (bits << (8-(chars+1))) | first;
             for(int k = 0; k < chars-1; k++) {
-                unsigned char hexchar = (unsigned char)src[i++];
+                unsigned char hexchar = (unsigned char)src[i];
                 if((char)hexchar == 0) { // besure the string ain't terminated
                     bits = 0;
                     break;
                 }
+                i++;
                 // clear first 2 bits
                 hexchar &= ~0x80; // 1
                 hexchar &= ~0x40; // 0
