@@ -53,7 +53,7 @@ char *encode_html(const char *src) {
     while(src[i]) {
         int chars = numberOfBytesInChar((unsigned char)src[i]);
         if(chars > 1) { // magic bitwise fuckery
-            // https://stackoverflow.com/questions/10017328/unicode-stored-in-c-char/10017544#10017544
+            // https://stackoverflow.com/a/10017544
             // https://stackoverflow.com/a/6240819
             unsigned long bits = 0;
             unsigned char first = (unsigned char)src[i++];
@@ -64,20 +64,27 @@ char *encode_html(const char *src) {
             bits = (bits << (8-(chars+1))) | first;
             for(int k = 0; k < chars-1; k++) {
                 unsigned char hexchar = (unsigned char)src[i++];
+                if((char)hexchar == 0) { // besure the string ain't terminated
+                    bits = 0;
+                    break;
+                }
                 // clear first 2 bits
-                hexchar &= ~0x80;
-                hexchar &= ~0x40;
+                hexchar &= ~0x80; // 1
+                hexchar &= ~0x40; // 0
                 // concat hexchar -> bits
                 bits = (bits << 6) | hexchar;
             }
             
-            char entity[16];
-            snprintf(entity, 16, "&#x%lx;", bits);
-            length += strlen(entity)-chars;
-            dest = realloc(dest, length);
-            for(size_t x = 0; x < strlen(entity); x++)
-                dest[j+x] = entity[x];
-            j += strlen(entity);
+            if(bits) {
+                char entity[16];
+                snprintf(entity, 16, "&#x%lx;", bits);
+                length += strlen(entity)-chars;
+                dest = realloc(dest, length);
+                for(size_t x = 0; x < strlen(entity); x++)
+                    dest[j+x] = entity[x];
+                j += strlen(entity);
+            } else
+                i++;
         }
         // don't escape these characters
         else if(isalnum(src[i]) || // [A-Za-z0-9]
