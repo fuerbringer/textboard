@@ -32,4 +32,5 @@
 #define TIME_LENGTH 40
 // Timeout in seconds for recv
 #define TIMEOUT 60
-#define DATABASE_TIMEOUT 0.5
+// Time for event loop to sleep in milliseconds
+#define LOOP_SLEEP 100

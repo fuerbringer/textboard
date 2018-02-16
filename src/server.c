@@ -213,6 +213,8 @@ int main(const int argc, const char *argv[]) {
             printf("Client connected: %s\n", inet_ntoa(client.sin_addr));
             handle(clientfd);
          }
+         
+         usleep(LOOP_SLEEP);
     }
     
     // Fin

@@ -78,7 +78,7 @@ void *db_thread_main(void *db_thread_params_ptr) {
         } else
             printf("Unable to acquire rwlock: %s\n", strerror(errno));
         
-        usleep(DATABASE_TIMEOUT/1000);
+        usleep(LOOP_SLEEP);
     }
     
     fclose(db_file);
