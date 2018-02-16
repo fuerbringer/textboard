@@ -33,4 +33,4 @@
 // Timeout in seconds for recv
 #define TIMEOUT 60
 // Time for event loop to sleep in milliseconds
-#define LOOP_SLEEP 100
+#define LOOP_SLEEP 1
