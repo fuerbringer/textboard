@@ -13,6 +13,7 @@
 #include "helpers.h"
 #include "posts.h"
 #include "config.h"
+#include "database.h"
 
 #define MAXPENDING 5
 #define DEFAULT_PORT 8080
@@ -22,6 +23,7 @@ static int sockfd = -1;
 static pthread_t db_thread;
 extern void *db_thread_main(void*);
 extern void handle(const int sockfd);
+struct db_thread_params *db_thread_params = NULL;
 
 // Database actions
 static void init_database() {
@@ -93,8 +95,12 @@ static void init_database() {
             global_id++;
     }
     
+    // Setup thread params
+    db_thread_params = malloc(sizeof(struct db_thread_params));
+    db_thread_params->curr_post_list = curr_post_list;
+    db_thread_params->should_save = 0;
     // Initialise the thread
-    if(pthread_create(&db_thread, NULL, db_thread_main, (void*)curr_post_list) < 0) {
+    if(pthread_create(&db_thread, NULL, db_thread_main, (void*)db_thread_params) < 0) {
         printf("Failed to load database thread!\n");
         post_list_destroy(curr_post_list);
         goto end;
