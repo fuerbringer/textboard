@@ -38,3 +38,5 @@
 #define LOOP_SLEEP 1
 // Time for database loop to sleep in milliseconds
 #define DATABASE_SLEEP 100
+// Max content length to recv
+#define MAX_CONTENT_LENGTH 65535
