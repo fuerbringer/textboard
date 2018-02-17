@@ -36,7 +36,7 @@ static char *genpasswd() {
 \
     snprintf(x, length, element, \
             post->subject, post->author, _time_utc, _time, \
-            post->id, post->id, post->replies->length, post->id, \
+            post->id, post->id, post->id, post->replies->length, post->id, \
             post->comment);
 
 #define GUESS_POST_RENDER_LENGTH(element) /* generous guesstimate */ \
