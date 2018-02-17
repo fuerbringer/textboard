@@ -21,7 +21,7 @@
 \
     snprintf(x, length, element, \
             post->subject, post->author, time_utc, time, \
-            post->id, post->id, post->replies->length, post->comment);
+            post->id, post->id, post->id, post->replies->length, post->comment);
 
 #define GUESS_POST_RENDER_LENGTH(element) /* generous guesstimate */ \
     (strlen(element) + \
