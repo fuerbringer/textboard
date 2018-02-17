@@ -6,7 +6,9 @@
 #define HTML_ESCAPE_LENGTH 14
 
 char *clone_str(const char *x) {
+    if(x == NULL) return NULL;
     char *str = malloc(strlen(x) + 1);
+    if(str == NULL) return NULL;
     strcpy(str, x);
     return str;
 }
@@ -119,4 +121,12 @@ char *encode_html(const char *src) {
     }
     dest[j] = 0;
     return dest;
+}
+
+int strocc(char *s, const char c) {
+    int j = 0;
+    for (int i = 0; s[i]; i++)
+        if(s[i] == c)
+            j++;
+    return j;
 }

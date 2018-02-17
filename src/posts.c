@@ -10,25 +10,42 @@
 #include "config.h"
 #include "database.h"
 
+static char *genpasswd() {
+	char *passwd = malloc(PASSWD_LENGTH+1);
+	const char alphanum[] =
+	        "0123456789"
+	        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	        "abcdefghijklmnopqrstuvwxyz";
+	// ASCII characters 33 to 126
+	for(int i = 0; i < PASSWD_LENGTH; i++) {
+		passwd[i] = alphanum[rand() % strlen(alphanum)];
+		srand(rand());
+	}
+	passwd[PASSWD_LENGTH] = 0;
+	return passwd;
+}
+
 #define RENDER_POST(x, length, element) \
-    char time_utc[TIME_LENGTH]; \
-    memset(time_utc, 0, TIME_LENGTH); \
-    strftime(time_utc, TIME_LENGTH, "%F %T", gmtime(&post->created_time)); \
+    char _time_utc[TIME_LENGTH]; \
+    memset(_time_utc, 0, TIME_LENGTH); \
+    strftime(_time_utc, TIME_LENGTH, "%F %T", gmtime(&post->created_time)); \
 \
-    char time[TIME_LENGTH]; \
-    memset(time, 0, TIME_LENGTH); \
-    strftime(time, TIME_LENGTH, "%F %T", localtime(&post->created_time)); \
+    char _time[TIME_LENGTH]; \
+    memset(_time, 0, TIME_LENGTH); \
+    strftime(_time, TIME_LENGTH, "%F %T", localtime(&post->created_time)); \
 \
     snprintf(x, length, element, \
-            post->subject, post->author, time_utc, time, \
-            post->id, post->id, post->replies->length, post->comment);
+            post->subject, post->author, _time_utc, _time, \
+            post->id, post->id, post->replies->length, post->id, \
+            post->comment);
 
 #define GUESS_POST_RENDER_LENGTH(element) /* generous guesstimate */ \
     (strlen(element) + \
+     (digits(post->id) * 3) + \
      strlen(post->author) + \
      strlen(post->subject) + \
      strlen(post->comment) + \
-     digits(post->replies->length) + 2 + \
+     digits(post->replies->length) + 2 /* (id) */ + \
      TIME_LENGTH * 2)
 
 extern struct db_thread_params *db_thread_params;
@@ -108,14 +125,14 @@ char *post_list_render(struct post_list *list, const int is_reply) {
         return NULL;
     }
     
-    char *html = malloc(list_length + 1);
+    char *html = malloc(list_length+1);
     if(html == NULL) return NULL;
     memset(html, 0, list_length);
     post = list->first;
     while(post != NULL) {
         const size_t length = GUESS_POST_RENDER_LENGTH(element);
         
-        char *tmp = malloc(length);
+        char *tmp = malloc(length+1);
         memset(tmp, 0, length);
         RENDER_POST(tmp, length, element)
         strcat(html, tmp);
@@ -127,11 +144,26 @@ char *post_list_render(struct post_list *list, const int is_reply) {
     return html;
 }
 
-struct post *post_list_find(struct post_list *list, int id) {
+struct post *post_list_find(struct post_list *list, const unsigned int id) {
     struct post *post = list->first;
     while(post != NULL) {
         if(post->id == id)
             return post;
+        post = post->next;
+    }
+    return NULL;
+}
+
+struct post *post_list_findr(struct post_list *list, const unsigned int id) {
+    struct post *post = list->first;
+    while(post != NULL) {
+        if(post->id == id)
+            return post;
+            
+        struct post *reply;
+        if((reply = post_list_find(post->replies,id)) != NULL)
+            return reply;
+        
         post = post->next;
     }
     return NULL;
@@ -193,7 +225,10 @@ void post_list_debug(struct post_list *list) {
 }
 
 // Post
-struct post *post_create(unsigned int id, const char *author, const char *subject, const char *comment, time_t created_time, struct post *parent) {
+struct post *post_create(
+	const unsigned int id, const char *author, const char *subject, const char *comment,
+	const char *delete_passwd, time_t created_time, struct post *parent
+) {
     if(db_thread_params != NULL && pthread_rwlock_wrlock(&db_thread_params->dblock) < 0) {
         printf("Unable to acquire rwlock: %s\n", strerror(errno));
         return NULL;
@@ -206,27 +241,36 @@ struct post *post_create(unsigned int id, const char *author, const char *subjec
         post->author = encode_html(author);
         post->subject = encode_html(subject);
         post->comment = encode_html(comment);
+        post->delete_passwd = genpasswd();
     } else {
         post->id = id;
         post->author = clone_str(author);
         post->subject = clone_str(subject);
         post->comment = clone_str(comment);
+        post->delete_passwd = clone_str(delete_passwd);
     }
     if( post->author  == NULL ||
         post->subject == NULL ||
         post->comment == NULL ) {
-        if(post->author != NULL) free(post->author);
+        if(post->author != NULL)  free(post->author);
         if(post->subject != NULL) free(post->subject);
         if(post->comment != NULL) free(post->comment);
+        if(post->delete_passwd != NULL) free(post->delete_passwd);
         free(post);
         return NULL;
     }
+    printf("PASSWORD: %s\n", post->delete_passwd);
     if(created_time)
         post->created_time = created_time;
     else
         post->created_time = time(NULL);
     post->saved = 0;
+    post->deleted = 0;
     post->replies = post_list_create();
+    if(post->replies == NULL) {
+    	post_destroy_no_list(post);
+    	return NULL;
+    }
     post->prev = NULL;
     post->next = NULL;
     
@@ -246,23 +290,41 @@ struct post *post_create(unsigned int id, const char *author, const char *subjec
     
     if(db_thread_params != NULL && pthread_rwlock_unlock(&db_thread_params->dblock) < 0) {
         printf("Unable to release rwlock: %s\n", strerror(errno));
-        free(post);
+        post_destroy(post);
         return NULL;
     }
     
     return post;
 }
 
+static inline void __post_destroy_no_list(struct post *post) {
+    if(post->author != NULL)  free(post->author);
+    if(post->subject != NULL) free(post->subject);
+    if(post->comment != NULL) free(post->comment);
+    if(post->delete_passwd != NULL) free(post->delete_passwd);
+    if(post->replies != NULL) post_list_destroy(post->replies);
+}
+
+void post_destroy_no_list(struct post *post) {
+    __post_destroy_no_list(post);
+    free(post);
+}
+
 void post_destroy(struct post *post) {
-    free(post->author);
-    free(post->subject);
-    free(post->comment);
-    post_list_destroy(post->replies);
+    __post_destroy_no_list(post);
+
+    struct post_list *list = NULL;
     if(post->parent == NULL) {
-        curr_post_list->length--;
+    	list = curr_post_list;
     } else {
-        post->parent->replies->length--;
+    	list = post->parent->replies;
     }
+    list->length--;
+
+    if(list->first == post)
+    	list->first = list->first->next;
+    else if(list->last == post)
+    	list->last = list->last->next;
     
     if(post->next != NULL)
         post->next->prev = post->prev;
@@ -278,6 +340,12 @@ char *post_render(struct post *post) {
     memset(html, 0, length);
     RENDER_POST(html, length, POST_ELEMENT)
     return html;
+}
+
+void post_delete(struct post *post) {
+    post->saved = 0;
+    post->deleted = 1;
+    db_thread_params->should_save = 1;
 }
 
 void post_debug(struct post *post) {

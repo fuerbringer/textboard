@@ -9,3 +9,4 @@
 char *clone_str(const char *x);
 void decode_uri(char *dest, const char *src);
 char *encode_html(const char *src);
+int strocc(char *s, const char c);

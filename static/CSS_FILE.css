@@ -25,7 +25,7 @@ tr td:first-child {
     color: #16A085;
     font-weight: bold;
 }
-.id {
+.id, .delete {
     color: #666666;
     text-decoration: underline;
 }
@@ -34,4 +34,7 @@ tr td:first-child {
 }
 .reply .replies{
     display: none;
+}
+.delete {
+    font-size: small;
 }
