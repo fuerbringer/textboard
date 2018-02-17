@@ -52,6 +52,7 @@ char *encode_html(const char *src) {
     if(dest == NULL) return NULL;
     memset(dest, 0, length);
     size_t i = 0, j = 0;
+    int last_char_is_space = 0;
     while(src[i]) {
         int chars = numberOfBytesInChar((unsigned char)src[i]);
         if(chars > 1) { // magic bitwise fuckery
@@ -89,9 +90,27 @@ char *encode_html(const char *src) {
             } else
                 i++;
         }
+        // space character
+        else if(src[i] == 32) {
+            if(last_char_is_space) {
+                length += strlen("&nbsp;")-1; // replaces 1 character with 1 string
+                dest = realloc(dest, length);
+                dest[j++] = '&';
+                dest[j++] = 'n';
+                dest[j++] = 'b';
+                dest[j++] = 's';
+                dest[j++] = 'p';
+                dest[j++] = ';';
+                i++;
+            } else {
+                dest[j++] = ' ';
+            }
+            last_char_is_space = 1;
+            continue;
+        }
         // don't escape these characters
         else if(isalnum(src[i]) || // [A-Za-z0-9]
-            (32 <= src[i] && src[i] <= 47 && src[i] != 44) || // [space] to / without ,
+            (33 <= src[i] && src[i] <= 47 && src[i] != 44) || // ! to / without ,
             // (makes converting from/to csv A LOT fucking easier
             (src[i] == 61 || src[i] == 63 || src[i] == 64) || // =, ?, @
             (123 <= src[i] && src[i] <= 126)) { // { to ~
@@ -118,6 +137,7 @@ char *encode_html(const char *src) {
                 dest[j+x] = num[x];
             j += strlen(num);
         }
+        last_char_is_space = 0;
     }
     dest[j] = 0;
     return dest;
