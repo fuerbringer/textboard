@@ -79,6 +79,10 @@ void handle(const int sockfd) {
         }
     }
     free(_buffer);
+
+    // truncate content length
+    if(content_length != (size_t)-1 && content_length > MAX_CONTENT_LENGTH)
+        content_length = MAX_CONTENT_LENGTH;
     
     if(body != NULL) {
         if(content_length <= strlen(body)) // prevents overflow
@@ -88,7 +92,7 @@ void handle(const int sockfd) {
             memset(cont, 0, BUFFSIZE+1);
             size_t total_received = strlen(body);
             while(total_received < content_length) {
-                if((received = recv(sockfd, cont, max(content_length - total_received, BUFFSIZE), 0)) < 0) {
+                if((received = recv(sockfd, cont, min(content_length-total_received, BUFFSIZE), 0)) < 0) {
                     break;
                 } else {
                     #ifndef PRODUCTION
