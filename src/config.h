@@ -13,7 +13,7 @@
 // Where the database will be located relative to the server binary
 #define DATABASE_FILE "database.csv"
 // Header of the database file
-#define DATABASE_HEADER "id,author,subject,comment,created_time,parent\n"
+#define DATABASE_HEADER "id,author,subject,comment,created_time,parent,delete_pwd,deleted\n"
 // Ensures empty columns will be parsed correctly
 // If you're not sure what to change it to, don't change it.
 #define DATABASE_DELIM_EMPTY "&"
@@ -24,6 +24,8 @@
 #define DEFAULT_USERNAME "anon"
 // Max number of posts in the server
 #define MAX_POSTS 90
+// Number of characters deletion password should have
+#define PASSWD_LENGTH 8
 
 // Misc (should be left at default)
 // Maximum number of characters the server should receive
@@ -34,3 +36,7 @@
 #define TIMEOUT 60
 // Time for event loop to sleep in milliseconds
 #define LOOP_SLEEP 1
+// Time for database loop to sleep in milliseconds
+#define DATABASE_SLEEP 100
+// Max content length to recv
+#define MAX_CONTENT_LENGTH 65535

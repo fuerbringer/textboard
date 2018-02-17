@@ -7,33 +7,42 @@
 #include "posts.h"
 #include "config.h"
 #include "database.h"
+#include "helpers.h"
 
-void db_thread_save(FILE **db_file_ptr, struct post_list **curr_post_list_ptr, int save_headers) {
+static void save_post_to_file(FILE *f, struct post *post) {
+    #define STR_VALUE_OR_EMPTY(x) ((x!=NULL&&strlen(x)) ? x : DATABASE_DELIM_EMPTY)
+
+    char *parent_id = NULL;
+    if(post->parent != NULL) {
+        parent_id = malloc(digits(post->parent->id)+1);
+        snprintf(parent_id, digits(post->parent->id)+1, "%i", post->parent->id);
+    }
+    
+    fprintf(f, "%i,%s,%s,%s,%li,%s,%s,%i\n",
+                    post->id, post->author,
+                    STR_VALUE_OR_EMPTY(post->subject),
+                    post->comment, post->created_time,
+                    STR_VALUE_OR_EMPTY(parent_id),
+                    post->delete_passwd,
+                    post->deleted);
+    if(parent_id != NULL) free(parent_id);
+    post->saved = 1;
+    
+    if(post->deleted && post->saved)
+        post_destroy(post);
+}
+
+void db_thread_save(FILE **db_file_ptr, struct post_list **curr_post_list_ptr) {
     FILE *db_file = *db_file_ptr;
     struct post_list *curr_post_list = *curr_post_list_ptr;
- 
-    #define STR_VALUE_OR_EMPTY(x) (strlen(x) ? x : DATABASE_DELIM_EMPTY)
         
     struct post *post = curr_post_list->last;
     while(post != NULL) {
-        if(!post->saved) {
-            fprintf(db_file, "%i,%s,%s,%s,%li," DATABASE_DELIM_EMPTY "\n",
-                    post->id, post->author,
-                    STR_VALUE_OR_EMPTY(post->subject),
-                    post->comment, post->created_time);
-            post->saved = 1;
-        }
+        if(!post->saved) save_post_to_file(db_file, post);
 
         struct post *reply = post->replies->first;
         while(reply != NULL) {
-            if(!reply->saved) {
-                fprintf(db_file, "%i,%s,%s,%s,%li,%i\n",
-                    reply->id, reply->author,
-                    STR_VALUE_OR_EMPTY(reply->subject),
-                    reply->comment, reply->created_time,
-                    post->id);
-                reply->saved = 1;
-            }
+            if(!reply->saved) save_post_to_file(db_file, reply);
             reply = reply->next;
         }
             
@@ -68,7 +77,7 @@ void *db_thread_main(void *db_thread_params_ptr) {
             }
             
             if(params->should_save) {
-                db_thread_save(&db_file, &curr_post_list, !header_saved);
+                db_thread_save(&db_file, &curr_post_list);
                 params->should_save = 0;
                 printf("Database saved.\n");
             }
@@ -78,7 +87,7 @@ void *db_thread_main(void *db_thread_params_ptr) {
         } else
             printf("Unable to acquire rwlock: %s\n", strerror(errno));
         
-        usleep(LOOP_SLEEP);
+        usleep(DATABASE_SLEEP);
     }
     
     fclose(db_file);

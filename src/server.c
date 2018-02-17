@@ -53,17 +53,45 @@ static void init_database() {
             #ifndef PRODUCTION
             printf("%s\n",line);
             #endif
-            
-            char *_saveptr;
-            char *id_str = strtok_r(line, ",", &_saveptr);
-            unsigned int id = atoi(id_str);
-            char *name = strtok_r(NULL, ",", &_saveptr);
-            char *subject = strtok_r(NULL, ",", &_saveptr);
-            if(streq(subject,DATABASE_DELIM_EMPTY)) subject = "";
-            char *comment = strtok_r(NULL, ",", &_saveptr);
-            char *created_time_str = strtok_r(NULL, ",", &_saveptr);
-            time_t created_time = atoi(created_time_str);
-            char *parent_str = strtok_r(NULL, "\n", &_saveptr);
+            int colons = strocc(line, ',');
+
+            // OLD (6): id, name, subject, comment, created_time, parent
+            // NEW (8): id, name, subject, comment, created_time, parent, delete_passwd, deleted
+
+            char *name, *subject, *comment, *parent_str, *delete_passwd = NULL;
+            unsigned int id;
+            time_t created_time;
+            int deleted = 0;
+
+            if(colons == 5 || colons == 7) {
+                char *_saveptr;
+                id = atoi(strtok_r(line, ",", &_saveptr));
+                name = strtok_r(NULL, ",", &_saveptr);
+                subject = strtok_r(NULL, ",", &_saveptr);
+                if(streq(subject,DATABASE_DELIM_EMPTY)) subject = "";
+                comment = strtok_r(NULL, ",", &_saveptr);
+                created_time = atoi(strtok_r(NULL, ",", &_saveptr));
+                if(colons == 7) {
+                    parent_str = strtok_r(NULL, ",", &_saveptr);
+                    delete_passwd = strtok_r(NULL, ",", &_saveptr);
+                    deleted = atoi(strtok_r(NULL, "\n", &_saveptr));
+                } else {
+                    parent_str = strtok_r(NULL, "\n", &_saveptr);
+                }
+            } else {
+                printf("Unexpected number of colons in database (got %i)\n", colons);
+                goto end;
+            }
+
+            if(deleted) {
+                struct post *post = NULL;
+                if((post = post_list_findr(curr_post_list, id)) != NULL) {
+                    printf("Destroying %i...\n", id);
+                    post_destroy(post);
+                    continue;
+                } else
+                    continue;
+            }
             
             #ifndef PRODUCTION
             printf("%i,%s,%s,%s,%li,%s\n", id, name, subject, comment, created_time, parent_str);
@@ -71,7 +99,7 @@ static void init_database() {
             
             if(streq(parent_str, DATABASE_DELIM_EMPTY)) {
                 global_id = max(global_id, id);
-                if(post_create(id, name, subject, comment, created_time, NULL) == NULL) {
+                if(post_create(id, name, subject, comment, delete_passwd, created_time, NULL) == NULL) {
                     printf("Failed to create post %i\n", id);
                     goto end;
                 }
@@ -81,24 +109,26 @@ static void init_database() {
                 struct post *parent;
                 if((parent = post_list_find(curr_post_list, parent_id)) != NULL) {
                     global_id = max(global_id, id);
-                    if(post_create(id, name, subject, comment, created_time, parent) == NULL) {
+                    if(post_create(id, name, subject, comment, delete_passwd, created_time, parent) == NULL) {
                         printf("Failed to create post %i\n", id);
                      goto end;
                     }
                     loaded++;
                 } else {
-                    printf("Ignoring #%i...\n", id);
+                    printf("Ignoring #%i (no parent id)...\n", id);
                 }
             }
         }
         if(loaded > 0)
             global_id++;
+        fclose(f);
     }
     
     // Setup thread params
     db_thread_params = malloc(sizeof(struct db_thread_params));
+    memset(db_thread_params, 0, sizeof(struct db_thread_params));
     db_thread_params->curr_post_list = curr_post_list;
-    db_thread_params->should_save = 0;
+    db_thread_params->should_save = 1;
     // Initialise the thread
     if(pthread_create(&db_thread, NULL, db_thread_main, (void*)db_thread_params) < 0) {
         printf("Failed to load database thread!\n");
@@ -113,16 +143,21 @@ end:
     exit(1);
 }
 
+// Cleanup functions
 static void cleanup_database() {
     pthread_cancel(db_thread);
     post_list_destroy(curr_post_list);
 }
 
-// Signal handlers
-static void cleanup(const int sig) {
-    printf("Cleaning up...\n");
+static void cleanup_sockets() {
     if(sockfd > 0 && shutdown(sockfd, 0) < 0)
         printf("WARNING! Failed to close server socket: %s\n", strerror(errno));
+}
+
+// Signal handlers
+static void cleanup(__attribute__((unused)) const int sig) {
+    printf("Cleaning up...\n");
+    cleanup_sockets();
     cleanup_database();
     exit(0);
 }
@@ -144,6 +179,7 @@ int main(const int argc, const char *argv[]) {
             port = strtol(argv[1], &endptr, 10);
             if(strlen(endptr)) {
                 printf("Invalid port number!\n");
+                cleanup_database();
                 exit(1);
             }
         }
@@ -151,11 +187,15 @@ int main(const int argc, const char *argv[]) {
     
     // Initialize database
     init_database();
+
+    // Initialize RNG for delete posts password
+    srand((unsigned) time(NULL));
     
     // Initialize TCP sockets
     sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if(sockfd < 0) {
         printf("Cannot open socket: %s\n", strerror(errno));
+        cleanup_database();
         exit(errno);
     }
     struct timeval tv;
@@ -167,6 +207,7 @@ int main(const int argc, const char *argv[]) {
     ) {
         printf("Cannot set socket opts: %s\n", strerror(errno));
         close(sockfd);
+        cleanup_database();
         exit(errno);
     }
     struct sockaddr_in server, client;
@@ -177,11 +218,13 @@ int main(const int argc, const char *argv[]) {
     if(bind(sockfd, (struct sockaddr *)&server, sizeof(server)) < 0) {
         printf("Failed to bind: %s\n", strerror(errno));
         close(sockfd);
+        cleanup_database();
         exit(errno);
     }
     if(listen(sockfd, MAXPENDING) < 0) {
         printf("Failed to listen: %s\n", strerror(errno));
         close(sockfd);
+        cleanup_database();
         exit(errno);
     }
     printf("Listening on port %i\n", port);
@@ -216,10 +259,9 @@ int main(const int argc, const char *argv[]) {
          
          usleep(LOOP_SLEEP);
     }
-    
-    // Fin
-    if(sockfd > 0 && shutdown(sockfd, 0) < 0)
-        printf("WARNING! Failed to close server socket: %s\n", strerror(errno));
+
+    // Ended
+    cleanup_sockets();
     cleanup_database();
     return 0;
 }

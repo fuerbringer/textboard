@@ -41,7 +41,7 @@ void handle(const int sockfd) {
     }
     strtok_r(NULL, "\n", &_saveptr); // skip rest of initial line
     // header lines
-    int content_length = -1;
+    size_t content_length = (size_t)-1;
     for(char *line = strtok_r(NULL, "\n", &_saveptr);
         line != NULL && !streq(line, "");
         line = strtok_r(NULL, "\n", &_saveptr)) {
@@ -57,7 +57,7 @@ void handle(const int sockfd) {
         }
         
         if(streq(key, "Content-Length"))
-            content_length = atoi(value);
+            content_length = (size_t)atoi(value);
         
         free(_line);
     }
@@ -79,16 +79,20 @@ void handle(const int sockfd) {
         }
     }
     free(_buffer);
+
+    // truncate content length
+    if(content_length != (size_t)-1 && content_length > MAX_CONTENT_LENGTH)
+        content_length = MAX_CONTENT_LENGTH;
     
     if(body != NULL) {
         if(content_length <= strlen(body)) // prevents overflow
             body[content_length] = 0;
-        else if (content_length > -1) {
+        else if (content_length != (size_t)-1) {
             char cont[BUFFSIZE+1];
             memset(cont, 0, BUFFSIZE+1);
-            int total_received = strlen(body);
+            size_t total_received = strlen(body);
             while(total_received < content_length) {
-                if((received = recv(sockfd, cont, max(content_length - total_received, BUFFSIZE), 0)) < 0) {
+                if((received = recv(sockfd, cont, min(content_length-total_received, BUFFSIZE), 0)) < 0) {
                     break;
                 } else {
                     #ifndef PRODUCTION
@@ -122,17 +126,31 @@ void handle(const int sockfd) {
         time_t _time = time(NULL); \
         strftime(date, TIME_LENGTH, "Date: %a, %d %b %Y %T GMT", gmtime(&_time));
 
-    #define malloc_or_fail(type, left, length, cleanup) \
-        type left = malloc(length); \
-        if(left == NULL) { \
-            sendstr(sockfd, \
-"HTTP/1.0 200 OK\n" \
-CNT_TEXT_HEADER \
-"\n" \
-"malloc failed (check stdout)"); \
-            printf("ERROR: malloc failed at %s:%i\n", __FILE__, __LINE__); \
-            cleanup \
-            goto end; \
+    #define LOOP_USER_CONTENT(cmd) \
+        for(char *pair = strtok_r(body, "&", &_saveptr); \
+                pair != NULL; \
+                pair = strtok_r(NULL, "&", &_saveptr)) { \
+\
+                char *_pair = clone_str(pair); \
+                const size_t pair_length = strlen(_pair); \
+\
+                char *_saveptr1; \
+                char *key = strtok_r(_pair, "=", &_saveptr1); \
+\
+                const size_t value_length = pair_length - strlen(key); \
+                char *_value = malloc(value_length + 1); \
+                strncpy(_value, _pair + strlen(key) + 1, value_length); \
+                _value[value_length] = 0; \
+\
+                char *value = malloc(value_length + 1); \
+                memset(value, 0, value_length); \
+                decode_uri(value, _value); \
+                free(_value); \
+\
+                do { cmd } while(0); \
+\
+                free(value); \
+                free(_pair); \
         }
 
     // response
@@ -182,7 +200,6 @@ CNT_TEXT_HEADER \
     // GET /post/*
     else if(streq(method, "GET") && startswith(path, "/post/")) {
         const char *post_id_str = strrchr(path, '/')+1;
-        
         const unsigned int post_id = (unsigned int)strtol(post_id_str, NULL, 10);
         struct post *post;
         
@@ -226,18 +243,17 @@ CNT_TEXT_HEADER \
             
             sendstr(sockfd, footer);
             free(footer);
-        } else {
+        } else
             sendstr(sockfd, 
 "HTTP/1.0 404 Not Found\n"
 CNT_TEXT_HEADER
 "\n"
 "there is no post by this id! ;n;");
-        }
         
     }
     // POST /post
     else if(streq(method, "POST") && streq(path, "/post")) {
-        if(content_length > -1) {
+        if(content_length != (size_t)-1) {
             char *name = NULL;
             char *subject = NULL;
             char *comment = NULL;
@@ -249,27 +265,8 @@ CNT_TEXT_HEADER
                 free(comment); \
                 if(reply_to != NULL) free(reply_to); \
             }
-            
-            for(char *pair = strtok_r(body, "&", &_saveptr);
-                pair != NULL;
-                pair = strtok_r(NULL, "&", &_saveptr)) {
-                
-                char *_pair = clone_str(pair);
-                const size_t pair_length = strlen(_pair);
-                
-                char *_saveptr1;
-                char *key = strtok_r(_pair, "=", &_saveptr1);
-                
-                const size_t value_length = pair_length - strlen(key);
-                char *_value = malloc(value_length + 1);
-                strncpy(_value, _pair + strlen(key) + 1, value_length);
-                _value[value_length] = 0;
-                
-                char *value = malloc(value_length + 1);
-                memset(value, 0, value_length);
-                decode_uri(value, _value);
-                free(_value);
-                
+
+            LOOP_USER_CONTENT({
                 if(streq(key, "name"))
                     name = clone_str(value);
                 else if(streq(key, "subject"))
@@ -278,10 +275,7 @@ CNT_TEXT_HEADER
                     comment = clone_str(value);
                 else if(streq(key, "reply_to"))
                     reply_to = clone_str(value);
-                
-                free(value);
-                free(_pair);
-            }
+            })
 
             if(name == NULL || !strlen(name)) {
                 if(!strlen(name)) free(name);
@@ -312,12 +306,12 @@ CNT_TEXT_HEADER
             // Put it in the database
             struct post *post = NULL;
             if(reply_to == NULL)
-                post = post_create((unsigned int)-1, name, subject, comment, 0, NULL);
+                post = post_create((unsigned int)-1, name, subject, comment, NULL, 0, NULL);
             else {
                 const unsigned int reply_to_id = (unsigned int)strtol(reply_to, NULL, 10);
                 struct post *parent;
                 if((parent = post_list_find(curr_post_list, reply_to_id)) != NULL) {
-                    post = post_create((unsigned int)-1, name, subject, comment, 0, parent);
+                    post = post_create((unsigned int)-1, name, subject, comment, NULL, 0, parent);
                 } else {
                     sendstr(sockfd,
 "HTTP/1.0 404 Not Found\n"
@@ -344,9 +338,11 @@ CNT_TEXT_HEADER
 "HTTP/1.0 200 OK\n"
 "Content-Type: text/html\n"
 "\n"
-"<meta http-equiv=refresh content='1; url=/' />"
-"OK! owo<br>"
-"<p><a href=/>&#8810; Back</a></p>");
+"<meta http-equiv=refresh content='10; url=/' />"
+"OK! Your post deletion password is: ");
+                sendstr(sockfd, post->delete_passwd);
+                sendstr(sockfd,
+"<p><a href=/>&#8810; Back (in 10s...)</a></p>");
             }
             
         } else {
@@ -357,13 +353,99 @@ CNT_TEXT_HEADER
 "can't post without arguments! ;n;");
         }
     }
+    // GET /delete/0
+    else if(streq(method, "GET") && startswith(path, "/delete/")) {
+        const char *post_id_str = strrchr(path, '/')+1;
+        
+        const size_t length =
+            strlen(DELETE_FILE) +
+            strlen(post_id_str)*2 +
+            1;
+        char *html = malloc(length);
+        snprintf(html, length, DELETE_FILE,
+            post_id_str, post_id_str);
+            
+        char length_str[32];
+        snprintf(length_str, 32, "Content-Length: %li\n", strlen(DELETE_FILE));
+        
+        sendstr(sockfd, "HTTP/1.0 200 OK\n"
+                        "Content-Type: text/html\n");
+        sendstr(sockfd, length_str);
+        sendstr(sockfd, "\n\n");
+        sendstr(sockfd, html);
+        free(html);
+            
+        goto end;
+    }
+    else if(streq(method, "POST") && startswith(path, "/delete/")) {
+        const char *post_id_str = strrchr(path, '/')+1;
+        const unsigned int post_id = (unsigned int)strtol(post_id_str, NULL, 10);
+                                                                                                
+        char *password = NULL;
+        LOOP_USER_CONTENT({
+            if(streq(key, "password"))
+                password = clone_str(value);
+        })
+
+        if(password == NULL) {
+            const size_t length =
+                strlen(DELETE_FILE) +
+                strlen(post_id_str)*2 +
+                1;
+            char *html = malloc(length);
+            snprintf(html, length, DELETE_FILE,
+                post_id_str, post_id_str);
+                
+            char length_str[32];
+            snprintf(length_str, 32, "Content-Length: %li\n", strlen(DELETE_FILE));
+            
+            sendstr(sockfd, "HTTP/1.0 200 OK\n"
+                            "Content-Type: text/html\n");
+            sendstr(sockfd, length_str);
+            sendstr(sockfd, "\n\n");
+            sendstr(sockfd, html);
+            free(html);
+                
+            goto end;
+        }
+        
+        struct post *post;
+                
+        if((post = post_list_findr(curr_post_list, post_id)) != NULL) {
+            char *pw_decode = malloc(strlen(password)+1);
+            memset(pw_decode, 0, strlen(password)+1);
+            decode_uri(pw_decode, password);
+            if(streq(post->delete_passwd, pw_decode)) {
+                post_delete(post);
+                sendstr(sockfd,
+"HTTP/1.0 200 OK\n"
+"Content-Type: text/html\n"
+"\n"
+"<meta http-equiv=refresh content='1; url=/' />"
+"OK! owo<br>"
+"<p><a href=/>&#8810; Back</a></p>");
+            } else {
+                sendstr(sockfd,
+                            "HTTP/1.0 200 OK\n"
+                            "Content-type: text/css\n"
+                            "\n"
+                            "Wrong deletion password! ;_;\n");
+            }
+            free(pw_decode);
+        } else 
+        sendstr(sockfd, 
+"HTTP/1.0 404 Not Found\n"
+CNT_TEXT_HEADER
+"\n"
+"there is no post by this id! ;n;");
+    }
     // GET /style.css
     else if(streq(method, "GET") && streq(path, "/style.css")) {
         sendstr(sockfd,
-"HTTP/1.0 200 OK\n"
-"Content-type: text/css\n"
-"\n"
-CSS_FILE);
+            "HTTP/1.0 200 OK\n"
+            "Content-type: text/css\n"
+            "\n"
+            CSS_FILE);
     }
     // 404 Not found otherwise
     else {
