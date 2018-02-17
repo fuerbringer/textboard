@@ -229,8 +229,8 @@ struct post *post_create(
 	const unsigned int id, const char *author, const char *subject, const char *comment,
 	const char *delete_passwd, time_t created_time, struct post *parent
 ) {
-    if(db_thread_params != NULL && pthread_rwlock_wrlock(&db_thread_params->dblock) < 0) {
-        printf("Unable to acquire rwlock: %s\n", strerror(errno));
+    if(db_thread_params != NULL && pthread_mutex_lock(&db_thread_params->db_lock) < 0) {
+        printf("Unable to acquire mutex lock: %s\n", strerror(errno));
         return NULL;
     }
     
@@ -259,7 +259,6 @@ struct post *post_create(
         free(post);
         return NULL;
     }
-    printf("PASSWORD: %s\n", post->delete_passwd);
     if(created_time)
         post->created_time = created_time;
     else
@@ -288,8 +287,8 @@ struct post *post_create(
         
     post_debug(post);
     
-    if(db_thread_params != NULL && pthread_rwlock_unlock(&db_thread_params->dblock) < 0) {
-        printf("Unable to release rwlock: %s\n", strerror(errno));
+    if(db_thread_params != NULL && pthread_mutex_unlock(&db_thread_params->db_lock) < 0) {
+        printf("Unable to release lock: %s\n", strerror(errno));
         post_destroy(post);
         return NULL;
     }

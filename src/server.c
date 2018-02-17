@@ -233,6 +233,7 @@ int main(const int argc, const char *argv[]) {
     fd_set readfds;
     
     struct timeval select_timeout;
+    memset(&select_timeout, 0, sizeof(struct timeval));
     
     while(1) {
         FD_ZERO(&readfds);

@@ -52,16 +52,31 @@ void db_thread_save(FILE **db_file_ptr, struct post_list **curr_post_list_ptr) {
     fflush(db_file);
 }
 
+static void db_thread_cleanup(void *db_thread_params_ptr) {
+    struct db_thread_params *params = db_thread_params_ptr;
+    if(pthread_mutex_lock(&params->db_lock) == 0) {
+        printf("Saving database...\n");
+        db_thread_save(&params->db_file, &params->curr_post_list);
+        fclose(params->db_file);
+        if(pthread_mutex_unlock(&params->db_lock) < 0)
+            printf("Unable to release rwlock: %s\n", strerror(errno));
+    } else
+        printf("Unable to acquire lock: %s\n", strerror(errno));
+}
+
 void *db_thread_main(void *db_thread_params_ptr) {
     printf("Database thread loaded!\n");
+    
+    // Cleanup
+    pthread_cleanup_push(db_thread_cleanup, db_thread_params_ptr);
     
     // Params
     struct db_thread_params *params = db_thread_params_ptr;
     struct post_list *curr_post_list = params->curr_post_list;
-    
+        
     // Load file
-    FILE *db_file = fopen(DATABASE_FILE, "w+");
-    if(db_file == NULL) {
+    params->db_file = fopen(DATABASE_FILE, "w+");
+    if(params->db_file == NULL) {
         printf("Database init error: %s\n", strerror(errno));
         return NULL;
     }
@@ -69,28 +84,30 @@ void *db_thread_main(void *db_thread_params_ptr) {
     // Poll for updates
     int header_saved = 0;
     while(1) {
-        if(pthread_rwlock_rdlock(&params->dblock) == 0) {
+        if(pthread_mutex_lock(&params->db_lock) == 0) {
             // Save the database
             if(!header_saved) {
-                fwrite(DATABASE_HEADER, 1, strlen(DATABASE_HEADER), db_file);
+                fwrite(DATABASE_HEADER, 1, strlen(DATABASE_HEADER), params->db_file);
                 header_saved = 1;
             }
             
             if(params->should_save) {
-                db_thread_save(&db_file, &curr_post_list);
+                db_thread_save(&params->db_file, &curr_post_list);
                 params->should_save = 0;
                 printf("Database saved.\n");
             }
             
-            if(pthread_rwlock_unlock(&params->dblock) < 0)
-                printf("Unable to release rwlock: %s\n", strerror(errno));
+            if(pthread_mutex_unlock(&params->db_lock) < 0)
+                printf("Unable to release lock: %s\n", strerror(errno));
         } else
-            printf("Unable to acquire rwlock: %s\n", strerror(errno));
+            printf("Unable to acquire lock: %s\n", strerror(errno));
         
         usleep(DATABASE_SLEEP);
     }
     
-    fclose(db_file);
+    fclose(params->db_file);
+
+    pthread_cleanup_pop(0);
     
     return NULL;
 }
