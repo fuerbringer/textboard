@@ -447,6 +447,20 @@ CNT_TEXT_HEADER
             "\n"
             CSS_FILE);
     }
+    // GET /rules.html
+    #ifdef RULES_FILE
+    else if(streq(method, "GET") && streq(path, "/rules.html")) {
+        char length_str[32];
+        snprintf(length_str, 32, "Content-Length: %li\n",
+            strlen(RULES_FILE));
+                    
+        sendstr(sockfd, "HTTP/1.0 200 OK\n"
+                        "Content-Type: text/html\n");
+        sendstr(sockfd, length_str);
+        sendstr(sockfd, "\n\n");
+        sendstr(sockfd, RULES_FILE);
+    }
+    #endif
     // 404 Not found otherwise
     else {
         char length_str[32];
