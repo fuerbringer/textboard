@@ -91,19 +91,16 @@ char *encode_html(const char *src) {
                 i++;
         }
         // space character
-        else if(src[i] == 32) {
+        else if(src[i] == ' ') {
             if(last_char_is_space) {
-                length += strlen("&nbsp;")-1; // replaces 1 character with 1 string
+                length += strlen("&nbsp;");
                 dest = realloc(dest, length);
-                dest[j++] = '&';
-                dest[j++] = 'n';
-                dest[j++] = 'b';
-                dest[j++] = 's';
-                dest[j++] = 'p';
-                dest[j++] = ';';
+                memcpy(dest+j, "&nbsp;", strlen("&nbsp;")+1);
+                j += strlen("&nbsp;");
                 i++;
             } else {
                 dest[j++] = ' ';
+                i++;
             }
             last_char_is_space = 1;
             continue;
@@ -118,12 +115,10 @@ char *encode_html(const char *src) {
         }
         // break line
         else if(src[i] == '\n') {
-            length += strlen("<br>")-1; // replaces 1 character with 1 string
+            length += strlen("<br>");
             dest = realloc(dest, length);
-            dest[j++] = '<';
-            dest[j++] = 'b';
-            dest[j++] = 'r';
-            dest[j++] = '>';
+            memcpy(dest+j, "<br>", strlen("<br>")+1);
+            j += strlen("<br>");
             i++;
         }
         // escape the others
@@ -131,7 +126,7 @@ char *encode_html(const char *src) {
             char num[HTML_ESCAPE_LENGTH];
             snprintf(num, HTML_ESCAPE_LENGTH, "&#%i;", src[i++]);
             
-            length += strlen(num)-1; // replaces 1 character with 1 string
+            length += strlen(num);
             dest = realloc(dest, length);
             for(size_t x = 0; x < strlen(num); x++)
                 dest[j+x] = num[x];
