@@ -28,13 +28,13 @@ struct db_thread_params *db_thread_params = NULL;
 // Database actions
 static void init_database() {
     global_id = 0;
-    
+
     curr_post_list = post_list_create();
     if(curr_post_list == NULL) {
         printf("Failed to create curr_post_list\n");
         exit(1);
     }
-    
+
     // Load database from file
     FILE *f = fopen(DATABASE_FILE, "r");
     if(f == NULL) {
@@ -49,7 +49,7 @@ static void init_database() {
                 header = 1;
                 continue;
             }
-            
+
             #ifndef PRODUCTION
             printf("%s\n",line);
             #endif
@@ -92,11 +92,11 @@ static void init_database() {
                 } else
                     continue;
             }
-            
+
             #ifndef PRODUCTION
             printf("%i,%s,%s,%s,%li,%s\n", id, name, subject, comment, created_time, parent_str);
             #endif
-            
+
             if(streq(parent_str, DATABASE_DELIM_EMPTY)) {
                 global_id = max(global_id, id);
                 if(post_create(id, name, subject, comment, delete_passwd, created_time, NULL) == NULL) {
@@ -121,9 +121,10 @@ static void init_database() {
         }
         if(loaded > 0)
             global_id++;
+        free(line);
         fclose(f);
     }
-    
+
     // Setup thread params
     db_thread_params = malloc(sizeof(struct db_thread_params));
     memset(db_thread_params, 0, sizeof(struct db_thread_params));
@@ -135,7 +136,7 @@ static void init_database() {
         post_list_destroy(curr_post_list);
         goto end;
     }
-    
+
     return;
 
 end:
@@ -167,7 +168,7 @@ int main(const int argc, const char *argv[]) {
     // Initialize signals
     signal(SIGINT, cleanup);
     signal(SIGKILL, cleanup);
-    
+
     // Parse arguments
     int port = DEFAULT_PORT;
     if(argc > 1) {
@@ -184,13 +185,13 @@ int main(const int argc, const char *argv[]) {
             }
         }
     }
-    
+
     // Initialize database
     init_database();
 
     // Initialize RNG for delete posts password
     srand((unsigned) time(NULL));
-    
+
     // Initialize TCP sockets
     sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if(sockfd < 0) {
@@ -228,24 +229,24 @@ int main(const int argc, const char *argv[]) {
         exit(errno);
     }
     printf("Listening on port %i\n", port);
-    
+
     // Event loop
     fd_set readfds;
-    
+
     struct timeval select_timeout;
     memset(&select_timeout, 0, sizeof(struct timeval));
-    
+
     while(1) {
         FD_ZERO(&readfds);
         FD_SET(sockfd, &readfds);
-        
-        tv.tv_sec = 0;
-        tv.tv_usec = 1000;
+
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
         int activity = select(FD_SETSIZE, &readfds, NULL, NULL, &select_timeout);
-        
+
         if (activity < 0 && errno != EINTR)
             continue;
-    
+
         if(FD_ISSET(sockfd, &readfds)) {
             unsigned int clientlen = sizeof(client);
             int clientfd;
@@ -257,7 +258,7 @@ int main(const int argc, const char *argv[]) {
             printf("Client connected: %s\n", inet_ntoa(client.sin_addr));
             handle(clientfd);
          }
-         
+
          usleep(LOOP_SLEEP);
     }
 
