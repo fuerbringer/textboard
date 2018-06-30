@@ -9,4 +9,4 @@ RUN touch database.csv
 RUN make
 
 EXPOSE 8080
-CMD ["nice -n 19 ./server"]
+CMD ["./server && renice 19 $(pidof server)"]
